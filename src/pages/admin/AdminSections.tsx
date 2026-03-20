@@ -158,13 +158,19 @@ const SectionPreview = ({ section, getVal }: { section: PageSection; getVal: (id
 
 // Hero Slider Editor Component
 const HeroSliderEditor = ({ 
+  sectionId,
   metadata, 
   onChange, 
-  onOpenMedia 
+  onOpenMedia,
+  onImageUpload,
+  uploading
 }: { 
+  sectionId: string;
   metadata: any; 
   onChange: (val: any) => void; 
   onOpenMedia: (slideIndex: number, field: string) => void;
+  onImageUpload: (index: number, field: string, file: File) => Promise<void>;
+  uploading: string | null;
 }) => {
   const slides = metadata?.slides || [];
 
@@ -282,12 +288,27 @@ const HeroSliderEditor = ({
                         placeholder="URL de imagen"
                         className="w-full px-3 py-1.5 rounded-lg border bg-background text-[10px]"
                       />
-                      <button
-                        onClick={() => onOpenMedia(index, 'img')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-card transition-colors w-full"
-                      >
-                        <ImageIcon className="w-3 h-3" /> Seleccionar de Librería
-                      </button>
+                      <div className="flex gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-card cursor-pointer transition-colors">
+                          {uploading === `slide-${index}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                          {uploading === `slide-${index}` ? 'Subiendo...' : 'Subir'}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) onImageUpload(index, 'img', f);
+                            }} 
+                          />
+                        </label>
+                        <button
+                          onClick={() => onOpenMedia(index, 'img')}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-card transition-colors"
+                        >
+                          <ImageIcon className="w-3 h-3" /> Librería
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -601,9 +622,34 @@ const AdminSections = () => {
                           <div>
                             {section.section_key === 'hero' && section.page_slug === 'index' ? (
                               <HeroSliderEditor 
+                                sectionId={section.id}
                                 metadata={getVal(section.id, 'metadata')}
                                 onChange={(newMeta) => setVal(section.id, 'metadata', newMeta)}
                                 onOpenMedia={(slideIdx, field) => setSliderMediaTarget({ id: section.id, slide: slideIdx, field })}
+                                uploading={uploading}
+                                onImageUpload={async (idx, field, file) => {
+                                  setUploading(`slide-${idx}`);
+                                  try {
+                                    const compressed = await compressImage(file);
+                                    const ext = compressed.name.split('.').pop();
+                                    const path = `slide-${section.id}-${idx}-${Date.now()}.${ext}`;
+                                    const { error } = await supabase.storage.from('product-images').upload(path, compressed);
+                                    if (error) throw error;
+                                    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
+                                    
+                                    const currentMeta = getVal(section.id, 'metadata') as any;
+                                    const newSlides = [...(currentMeta?.slides || [])];
+                                    if (newSlides[idx]) {
+                                      newSlides[idx][field] = urlData.publicUrl;
+                                      setVal(section.id, 'metadata', { ...currentMeta, slides: newSlides });
+                                    }
+                                    toast.success('Imagen de diapositiva subida');
+                                  } catch {
+                                    toast.error('Error al subir imagen de diapositiva');
+                                  } finally {
+                                    setUploading(null);
+                                  }
+                                }}
                               />
                             ) : (
                               <>

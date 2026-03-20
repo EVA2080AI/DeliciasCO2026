@@ -53,6 +53,7 @@ export const useUpdatePageSection = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['page-sections'] });
+      qc.invalidateQueries({ queryKey: ['page-sections-all'] });
     },
   });
 };
