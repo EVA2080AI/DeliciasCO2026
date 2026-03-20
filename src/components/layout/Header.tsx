@@ -84,13 +84,14 @@ export const Header = () => {
 
       <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'shadow-medium bg-background/95 backdrop-blur-md' : 'bg-background'}`}>
         <div className="max-w-[1440px] mx-auto flex items-center justify-between h-[72px] px-4 lg:px-10">
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src={brandLogo} alt={brandName} className="w-12 h-12 object-contain" />
-            <div>
-              <span className="font-display text-xl text-foreground leading-none tracking-tight">
-                {brandName}
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <img src={brandLogo} alt={brandName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
+            <div className="flex flex-col">
+              <span className="font-display text-lg sm:text-xl text-foreground leading-none tracking-tight font-bold">
+                <span className="hidden sm:inline">{brandName}</span>
+                <span className="sm:hidden">DC Delicias</span>
               </span>
-              <span className="block text-[9px] text-muted-foreground font-semibold tracking-[0.18em] uppercase hidden sm:block">{brandSubtitle}</span>
+              <span className="text-[9px] text-muted-foreground font-semibold tracking-[0.18em] uppercase hidden md:block mt-0.5">{brandSubtitle}</span>
             </div>
           </Link>
 
@@ -110,7 +111,7 @@ export const Header = () => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <Link to="/preguntas-frecuentes" className="hidden xl:inline-flex text-[13px] font-semibold text-foreground/70 hover:text-foreground px-3 py-2 rounded-full hover:bg-secondary transition-all">
               FAQ
             </Link>
