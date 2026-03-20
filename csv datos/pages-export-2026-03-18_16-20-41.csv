@@ -1,0 +1,8 @@
+id;slug;title;description;active;sort_order;created_at;updated_at
+107065a4-6bc9-413b-b562-4aaa7ee37394;inicio;Inicio;Página principal;true;0;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+7e5be77e-b1ad-45aa-aec0-a7df697a517f;menu;Menú;Nuestros productos;true;1;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+8ef79c99-c87a-4b61-b60a-8007211362ea;blog;Blog;Recetas, historia y tradición;true;2;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+0fd1e71c-90a0-4a88-97f2-9a782bada1e6;institucional;Empresas;Pedidos institucionales;true;3;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+f953b717-5ac1-4c91-af22-c074741db241;sedes;Sedes;Nuestras ubicaciones;true;4;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+8f87070b-d032-471f-bd9f-1cb73d5b840e;nosotros;Nosotros;Nuestra historia;true;5;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00
+a9c7b1aa-bb6f-481f-aa17-3c3f9e92dd62;preguntas-frecuentes;FAQ;Preguntas frecuentes;true;6;2026-03-08 17:04:19.33316+00;2026-03-08 17:04:19.33316+00

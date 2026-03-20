@@ -1,0 +1,294 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 20 40% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 40% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 40% 8%;
+
+    --primary: 14 72% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 32 25% 91%;
+    --secondary-foreground: 20 40% 12%;
+
+    --brand-red: 0 78% 52%;
+    --brand-red-light: 0 72% 62%;
+    --brand-red-dark: 0 82% 38%;
+
+    --muted: 30 12% 93%;
+    --muted-foreground: 20 12% 40%;
+
+    --accent: 14 72% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 80% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 18% 86%;
+    --input: 30 18% 86%;
+    --ring: 14 72% 42%;
+
+    --radius: 0.75rem;
+
+    /* Brand palette — high contrast */
+    --terracotta: 14 72% 42%;
+    --terracotta-light: 16 60% 55%;
+    --terracotta-dark: 12 75% 28%;
+    --warm-brown: 20 45% 12%;
+    --warm-brown-light: 20 18% 40%;
+    --cream: 38 30% 96%;
+    --cream-dark: 32 22% 88%;
+    --sand: 35 28% 92%;
+    --sand-dark: 30 22% 80%;
+    --cinnamon: 18 55% 28%;
+    --wheat: 40 35% 85%;
+
+    /* Section backgrounds */
+    --section-warm: 28 22% 93%;
+    --section-dark: 20 45% 12%;
+    --section-cream: 38 30% 96%;
+    --section-terracotta: 14 72% 42%;
+
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+
+    --shadow-soft: 0 1px 3px 0 hsl(25 30% 12% / 0.04), 0 1px 2px -1px hsl(25 30% 12% / 0.04);
+    --shadow-medium: 0 4px 6px -1px hsl(25 30% 12% / 0.06), 0 2px 4px -2px hsl(25 30% 12% / 0.04);
+    --shadow-warm: 0 4px 14px -2px hsl(18 58% 46% / 0.1);
+    --shadow-elevated: 0 10px 25px -5px hsl(25 30% 12% / 0.08), 0 8px 10px -6px hsl(25 30% 12% / 0.04);
+
+    --sidebar-background: 40 20% 98%;
+    --sidebar-foreground: 25 30% 20%;
+    --sidebar-primary: 18 58% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 30% 94%;
+    --sidebar-accent-foreground: 25 30% 20%;
+    --sidebar-border: 35 15% 90%;
+    --sidebar-ring: 18 58% 46%;
+  }
+
+  .dark {
+    --background: 24 10% 4%;
+    --foreground: 38 25% 95%;
+
+    --card: 24 8% 6%;
+    --card-foreground: 38 25% 95%;
+
+    --popover: 24 8% 6%;
+    --popover-foreground: 38 25% 95%;
+
+    --primary: 14 78% 54%;
+    --primary-foreground: 24 10% 4%;
+
+    --secondary: 24 10% 12%;
+    --secondary-foreground: 38 20% 90%;
+
+    --brand-red: 0 70% 55%;
+    --brand-red-light: 0 65% 65%;
+    --brand-red-dark: 0 75% 42%;
+
+    --muted: 20 8% 15%;
+    --muted-foreground: 25 10% 55%;
+
+    --accent: 14 72% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 24 10% 18%;
+    --input: 24 10% 18%;
+    --ring: 14 78% 54%;
+
+    --terracotta: 14 78% 54%;
+    --terracotta-light: 16 65% 65%;
+    --terracotta-dark: 12 80% 40%;
+    --warm-brown: 38 25% 95%;
+    --warm-brown-light: 25 15% 60%;
+    --cream: 24 8% 6%;
+    --cream-dark: 24 10% 10%;
+    --sand: 24 8% 8%;
+    --sand-dark: 24 8% 12%;
+    --cinnamon: 18 55% 60%;
+    --wheat: 35 15% 30%;
+
+    --section-warm: 24 10% 7%;
+    --section-dark: 24 14% 3%;
+    --section-cream: 24 12% 5%;
+    --section-terracotta: 14 70% 25%;
+
+    --shadow-soft: 0 1px 3px 0 hsl(0 0% 0% / 0.5);
+    --shadow-medium: 0 4px 6px -1px hsl(0 0% 0% / 0.6);
+    --shadow-warm: 0 4px 14px -2px hsl(14 78% 54% / 0.15);
+    --shadow-elevated: 0 10px 25px -5px hsl(0 0% 0% / 0.7);
+
+    --sidebar-background: 24 10% 4%;
+    --sidebar-foreground: 38 25% 90%;
+    --sidebar-primary: 14 78% 54%;
+    --sidebar-primary-foreground: 24 10% 4%;
+    --sidebar-accent: 24 10% 10%;
+    --sidebar-accent-foreground: 38 25% 90%;
+    --sidebar-border: 24 10% 14%;
+    --sidebar-ring: 14 78% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+
+  /* Full-width split section */
+  .split-section {
+    @apply w-full grid grid-cols-1 md:grid-cols-2;
+    min-height: 500px;
+  }
+
+  .split-section-content {
+    @apply flex flex-col justify-center px-8 py-12 md:px-16 lg:px-24;
+  }
+
+  .split-section-image {
+    @apply w-full h-full min-h-[300px] md:min-h-0;
+  }
+
+  .split-section-image img {
+    @apply w-full h-full object-cover;
+  }
+
+  /* Section backgrounds */
+  .bg-section-warm {
+    background-color: hsl(var(--section-warm));
+  }
+
+  .bg-section-dark {
+    background-color: hsl(var(--section-dark));
+  }
+
+  .bg-section-cream {
+    background-color: hsl(var(--section-cream));
+  }
+
+  .bg-section-terracotta {
+    background-color: hsl(var(--section-terracotta));
+  }
+
+  /* CTA buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm transition-all duration-200;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  .btn-primary:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm border transition-all duration-200;
+    border-color: hsl(var(--foreground));
+    color: hsl(var(--foreground));
+  }
+
+  .btn-outline:hover {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  /* Siempre sobre fondos oscuros (bg-section-dark, bg-section-terracotta)
+     → blanco explícito, independiente del modo */
+  .btn-outline-light {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm border transition-all duration-200;
+    border-color: rgb(255 255 255 / 0.75);
+    color: rgb(255 255 255);
+    background: transparent;
+  }
+
+  .btn-outline-light:hover {
+    background: rgb(255 255 255);
+    border-color: rgb(255 255 255);
+    color: hsl(var(--warm-brown));
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em];
+    background: hsl(var(--terracotta) / 0.08);
+    color: hsl(var(--terracotta));
+  }
+
+  .text-gradient-warm {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--terracotta)), hsl(var(--cinnamon)));
+  }
+
+  .bg-gradient-gold {
+    background: linear-gradient(135deg, hsl(var(--terracotta)), hsl(var(--terracotta-dark)));
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .shadow-gold {
+    box-shadow: var(--shadow-warm);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(35 15% 82%);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(18 58% 46% / 0.4);
+}

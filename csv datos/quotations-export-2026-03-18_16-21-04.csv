@@ -1,0 +1,3 @@
+id;company_name;nit;contact_name;phone;email;items;total;status;created_at;updated_at;notes
+36e26ec5-4ef7-4f0a-8d8a-db5be0b20a37;masmela ing;24235345345324453;sebastian@gmail.com;14234343444;23423423423;"[{""name"":""Capuchino"",""quantity"":3,""subtotal"":13500}]";13500;pending;2026-03-14 20:55:50.456115+00;2026-03-14 20:55:50.456115+00;Fecha deseada: 2026-03-25 | ENVÍO DOMICILIO: 23423423 24234234 23423423
+9d0f5716-119e-4156-85f5-2ac93b5cc2ed;del;35435;dddd5;565656;jhjhjhjhjhjh;"[{""name"":""Pastel de pollo"",""quantity"":3,""subtotal"":15000},{""name"":""Pastel de pollo con champiñones"",""quantity"":2,""subtotal"":10000}]";25000;pending;2026-03-16 01:11:50.521551+00;2026-03-16 01:11:50.521551+00;Fecha deseada: 2026-03-17 | RECOGER EN SEDE: Sede Spring Norte

@@ -1,0 +1,42 @@
+id;key;value;type;category;label;sort_order;created_at;updated_at
+f1854230-996a-4764-ad2d-737d4463b1c3;brand_logo;;image;brand;Logo;3;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+f2aed1ef-6281-4e2d-8f64-4bdef2dced01;brand_color_background;40 20% 98%;color;brand;Color de fondo;6;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+76482b38-9721-4e2d-9ea0-b63a787b7db1;brand_color_foreground;20 40% 8%;color;brand;Color de texto;7;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+a8412347-e914-4b49-bdac-a587808e742e;contact_email;info@deliciascolombianas.com;text;contact;Email;4;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+89e1b9ee-3815-4f71-ac3d-f49bbcc14379;social_instagram;https://www.instagram.com/deliciascolombianas;text;social;Instagram;1;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+e8e2bec6-f04b-4cb6-a4f6-faa20fa637bb;social_facebook;https://www.facebook.com/deliciascolombianas;text;social;Facebook;2;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+f71ea71c-4539-4a70-954d-b45a5633119b;social_tiktok;;text;social;TikTok;3;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+87103884-4da9-478d-842a-a5e3f6371208;seo_title;Delicias Colombianas — Panadería Artesanal desde 1985;text;seo;Título SEO;1;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+928ce7e4-6d92-4712-902f-49d6aadeb1d5;seo_description;Pasteles, empanadas y café artesanal en Bogotá. Más de 38 años de tradición colombiana.;text;seo;Descripción SEO;2;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+4d9a6e98-0ebb-48bc-956c-49f1fb9d2935;seo_og_image;;image;seo;Imagen OG;3;2026-03-08 21:11:42.54461+00;2026-03-08 21:11:42.54461+00
+716fdc2c-ad94-47bc-bec0-6c29ce2f6d86;brand_subtitle;Arbey Cabrera · Desde 1985;text;brand;Subtítulo del logo;2;2026-03-08 21:11:42.54461+00;2026-03-08 21:28:52.087061+00
+04e15383-90f7-44ba-b80b-a0c458743258;brand_font_display;Plus Jakarta Sans;font;brand;Tipografía títulos;8;2026-03-08 21:11:42.54461+00;2026-03-08 22:08:11.645416+00
+09c98594-f3eb-432a-ad0a-465119249c59;brand_font_body;Plus Jakarta Sans;font;brand;Tipografía cuerpo;9;2026-03-08 21:11:42.54461+00;2026-03-08 22:08:11.645416+00
+27bcf56d-c0e2-40eb-a838-772b39ab7484;brand_color_primary;0 100% 34%;color;brand;Color primario (terracotta);4;2026-03-08 21:11:42.54461+00;2026-03-14 18:49:55.626027+00
+088aa95b-2a50-4d89-ba35-8dbf8d9d4aa9;brand_color_secondary;0 91% 35%;color;brand;Color secundario (rojo);5;2026-03-08 21:11:42.54461+00;2026-03-08 22:22:32.348913+00
+57b6ca1d-c9a2-47f2-849b-4eeed961129d;contact_phone_1;	+573152905160;text;contact;Teléfono principal;1;2026-03-08 21:11:42.54461+00;2026-03-15 15:47:36.523938+00
+0b49a2f4-7ae4-452d-92fb-25649f04880a;brand_name;DC Delicias Colombianas;text;brand;Nombre de la marca;1;2026-03-08 21:11:42.54461+00;2026-03-08 23:10:32.91009+00
+b94a5d8a-a7fa-4659-beb1-75d54117c9d5;contact_phone_2;	+573152905160;text;contact;Teléfono secundario;2;2026-03-08 21:11:42.54461+00;2026-03-13 19:27:16.912307+00
+3d2f64b4-a6e8-49df-87f2-017c72020451;contact_whatsapp;	+573152905160;text;contact;WhatsApp;3;2026-03-08 21:11:42.54461+00;2026-03-13 19:27:18.091194+00
+fdf6505a-3f44-457f-b8dc-dda77163af0d;sedes;"[
+  {
+    ""id"": ""quirinal"",
+    ""name"": ""Sede Quirinal"",
+    ""type"": ""tienda"",
+    ""phone"": ""+573169259646"",
+    ""whatsapp"": ""3169259646"",
+    ""hours"": ""Lun–Sáb 6AM–8PM · Dom 7AM–3PM"",
+    ""address"": ""Calle 60 #56A-32, Barrio Quirinal, Bogotá"",
+    ""mapEmbed"": ""https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.7!2d-74.0789!3d4.6583!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f9a3c6e4d0001%3A0x1234567890abcdef!2sCalle+60+%2356A-32%2C+Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1""
+  },
+  {
+    ""id"": ""sprint"",
+    ""name"": ""Sede Spring Norte"",
+    ""type"": ""tienda"",
+    ""phone"": ""+57 3152905160"",
+    ""whatsapp"": ""573152905160"",
+    ""hours"": ""Lun–Sáb 6AM–8PM · Dom 7AM–3PM"",
+    ""address"": ""Calle 136 #53 - 86, Bogotá"",
+    ""mapEmbed"": ""https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.2660122907473!2d-74.06054982502066!3d4.72379139525128!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f853e600540e1%3A0x46976ed4eebfa4bc!2sDelicias%20Colombianas%20-%20El%20Mejor%20Pastel%20de%20Pollo%20-%20Barrio%20Sprint!5e0!3m2!1ses-419!2sco!4v1773517419701!5m2!1ses-419!2sco\"" width=\""600\"" height=\""450\"" style=\""border:0;\"" allowfullscreen=\""\"" loading=\""lazy\"" referrerpolicy=\""no-referrer-when-downgrade""
+  }
+]";json;sedes;Sedes;1;2026-03-08 21:11:42.54461+00;2026-03-16 09:39:43.929283+00

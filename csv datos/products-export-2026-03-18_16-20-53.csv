@@ -1,0 +1,30 @@
+id;name;description;long_description;price;category;image_url;featured;active;sort_order;created_at;updated_at;requires_advance_notice
+db0ccc1f-fb9a-4490-8348-76e4474256bf;Pastel de pollo 2 x 1 hasta las 3 de la tarde 20/03/2026;Delicioso pastel horneado relleno de pollo;;5000;pasteleria;;false;true;10;2026-03-18 16:56:20.4017+00;2026-03-18 18:30:36.356556+00;false
+7921a996-b18a-4e8f-90d7-00c39c5862db;Pastel de pollo con champiñones;Pastel relleno de pollo y champiñones en salsa;;5000;pasteleria;;false;true;11;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+e57391ec-398b-457b-9262-d13156abd0f2;Pastel de carne;Tradicional pastel horneado de carne;;5000;pasteleria;;false;true;12;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+88a9c81e-9f70-4ffe-a608-8368eb5167a7;Pastel hawaiano;Pastel relleno de jamón, queso y piña;;5000;pasteleria;;false;true;13;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+1b255afc-e7ff-4d59-9214-6a741f7aa816;Pastel italiano;Exquisito pastel con sabores italianos;;5000;pasteleria;;false;true;14;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+73f10956-1973-43bf-b069-5255b6007d32;Pastel vegetariano;Opción saludable rellena de vegetales frescos;;5000;pasteleria;;false;true;15;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+aa9c5f59-de78-46b4-b090-06d7c7b10374;Pastel de atún;Pastel relleno de atún preparado;;5000;pasteleria;;false;true;16;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+96c341c7-c633-422f-8584-ed48192915ea;Pastel especial;Nuestra mezcla especial de la casa;;5500;pasteleria;;false;true;17;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+828b30b3-3501-49a5-8614-0d66403f5e7f;Pie de arequipe;Crujiente pie relleno de puro arequipe;;6000;pies;;false;true;20;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+5b09aa66-57b0-4241-98d3-f443502dbc96;Pie de bocadillo con queso;Pie tradicional con la mejor combinación dulce-salada;;6000;pies;;false;true;21;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+9962284d-ed46-495a-91d6-2cd83b94cff8;Pie de maracuyá;Postre cremoso de maracuyá sobre concha de galleta;;6000;pies;;false;true;22;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+4a2a0f75-5e3e-4f50-960f-71c3f62fc4b0;Pie de mora;Postre dulce y ácido de mora natural;;6000;pies;;false;true;23;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+d5a2974d-f488-421e-8fdd-0c55132d942d;Pie de chocolate;Pie oscuro y decadente de suave chocolate;;6000;pies;;false;true;24;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+84ed4279-0ce1-4196-9273-43fce6cbe683;Pandeyucas;Pandeyucas horneados esponjosos y quesudos;;2500;delicias;;false;true;30;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+cd04a35a-d44f-41d0-b33c-92ddc77dc343;Almojábanas;Almojábanas calientitas y frescas;;2500;delicias;;false;true;31;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+57b020c0-f657-435c-9be5-472391e048be;Croissant jamón y queso;Croissant hojaldrado relleno;;4000;delicias;;false;true;32;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+bfcfd320-e09b-4ab5-af9e-1407b0df1988;Croissant bocadillo con queso;Croissant hojaldrado dulce y salado;;4000;delicias;;false;true;33;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+23e125b1-5b5b-40d8-8e85-686bde13a1f8;Pasteles gloria;Tradicional pastel gloria con arequipe y queso;;3500;delicias;;false;true;34;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+8280ea08-ccf4-4165-babb-6146f6c6dc5e;Pasabocas;Pequeños bocados salados para acompañar;;2000;delicias;;false;true;35;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+c3583d17-11bd-47d5-ad9f-a7ae6b3adad3;Palitos de queso;Bastones de masa hojaldrada y queso;;3000;delicias;;false;true;36;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+56a2325b-98cd-448f-8061-a92694038bc0;Bolsa de pan calentado;Bolsa ideal para desayunar en familia;;5500;delicias;;false;true;37;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+77b89140-716f-49fe-861c-577247284111;Bolsa de mini pasabocas;Ideal para reuniones u onces corporativas;;8000;delicias;;false;true;38;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+3920f8fd-2ca5-430f-b816-954a01ea4734;Jugo de naranja;Jugo 100% natural y recién exprimido;;4000;bebidas;;false;true;40;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+1ad27aed-baa0-4310-96b1-2721aa681dc1;Gaseosas;Variedad de bebidas carbonatadas frías;;3500;bebidas;;false;true;41;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+4bede725-ee7a-4a60-b805-1cceb9011fc5;Capuchino;Café espresso con leche espumada;;4500;cafeteria;;false;true;50;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+c98e8864-52f2-418f-99b5-23f4c1e9e2d4;Café en leche;Café tradicional preparado con leche;;3500;cafeteria;;false;true;51;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+532b606c-26aa-4ddb-b8d7-d4b79370232a;Tinto;Café negro colombiano clásico;;2000;cafeteria;;false;true;52;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+ea1fa4b7-cf8b-40cb-90e0-96e72f6b319b;Aromática;Infusión caliente de frutas o hierbas;;2000;cafeteria;;false;true;53;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false
+9e2f96ce-9ca0-42fd-95f7-1fc8cec2b9c5;Milo caliente;Deliciosa bebida a base de Milo y leche caliente;;4500;cafeteria;;false;true;54;2026-03-18 16:56:20.4017+00;2026-03-18 16:56:20.4017+00;false

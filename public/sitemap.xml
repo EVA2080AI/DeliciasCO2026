@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Página principal -->
+  <url>
+    <loc>https://deliciascolombianas.com/</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Menú -->
+  <url>
+    <loc>https://deliciascolombianas.com/menu</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Nosotros -->
+  <url>
+    <loc>https://deliciascolombianas.com/nosotros</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Sedes -->
+  <url>
+    <loc>https://deliciascolombianas.com/sedes</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Blog -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Preguntas frecuentes -->
+  <url>
+    <loc>https://deliciascolombianas.com/preguntas-frecuentes</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Empresas / Institucional -->
+  <url>
+    <loc>https://deliciascolombianas.com/institucional</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ======= ARTÍCULOS DEL BLOG ======= -->
+
+  <!-- Historia: Origen en el conflicto armado -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/origen-conflicto-armado-familia-pastelera</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Historia principal -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/historia-delicias-colombianas</loc>
+    <lastmod>2026-02-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Receta: Pastel de pollo -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/secreto-pastel-pollo</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Receta: Pastel de pollo colombiano paso a paso -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/receta-pastel-pollo-colombiano</loc>
+    <lastmod>2026-02-10</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Historia: Primer pastel de pollo -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/primer-pastel-pollo-1985</loc>
+    <lastmod>2026-01-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Historia: Pastelería colombiana -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/historia-pasteleria-colombiana</loc>
+    <lastmod>2025-12-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Receta: Empanada -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/empanada-colombiana-perfecta</loc>
+    <lastmod>2025-10-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Historia: Almojábana -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/almojabana-tradicion</loc>
+    <lastmod>2025-09-12</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Tips: Café colombiano -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/cafe-colombiano-preparacion</loc>
+    <lastmod>2025-08-25</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Historia: Pan de bono -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/pan-de-bono-historia</loc>
+    <lastmod>2025-07-30</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Tips: Pastel de pollo para eventos -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/pastel-pollo-eventos-bogota</loc>
+    <lastmod>2026-02-28</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Tips: Mejores pastelerías Bogotá -->
+  <url>
+    <loc>https://deliciascolombianas.com/blog/mejores-pastelerias-bogota</loc>
+    <lastmod>2026-01-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
