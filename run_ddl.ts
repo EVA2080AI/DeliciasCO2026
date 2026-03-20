@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 
-const connectionString = 'postgresql://postgres:XqBl2t0XRyRe1QCD@db.pgohvsndgxrilconcebh.supabase.co:5432/postgres';
+const connectionString = 'postgresql://postgres:WmSmt-FA_bFGjWUCF9Uf_Idr41Ur_I8wQdIFazcxPvA@db.sqshrqbopwmxkfkvmmtd.supabase.co:5432/postgres';
 
 async function migrate() {
   const client = new Client({

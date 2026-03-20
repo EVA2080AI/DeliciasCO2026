@@ -90,7 +90,7 @@ export const Header = () => {
               <span className="font-display text-xl text-foreground leading-none tracking-tight">
                 {brandName}
               </span>
-              <span className="block text-[9px] text-muted-foreground font-semibold tracking-[0.18em] uppercase">{brandSubtitle}</span>
+              <span className="block text-[9px] text-muted-foreground font-semibold tracking-[0.18em] uppercase hidden sm:block">{brandSubtitle}</span>
             </div>
           </Link>
 
