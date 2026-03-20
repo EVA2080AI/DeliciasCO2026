@@ -175,7 +175,9 @@ const Index = () => {
         <section className="w-full bg-section-dark">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
-              <img src={s.productos?.image_url || sectionImages.productos} alt={s.productos?.title || ''} className="w-full h-full object-cover" />
+              {s.productos?.image_url && (
+                <img src={s.productos.image_url} alt={s.productos?.title || ''} className="w-full h-full object-cover" />
+              )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-white leading-tight mb-4">
@@ -212,7 +214,9 @@ const Index = () => {
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
-              <img src={s.cafeteria?.image_url || sectionImages.cafeteria} alt={s.cafeteria?.title || ''} className="w-full h-full object-cover" />
+              {s.cafeteria?.image_url && (
+                <img src={s.cafeteria.image_url} alt={s.cafeteria?.title || ''} className="w-full h-full object-cover" />
+              )}
             </div>
           </div>
         </section>
@@ -223,7 +227,9 @@ const Index = () => {
         <section className="w-full bg-section-terracotta">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
-              <img src={s.delicias?.image_url || sectionImages.delicias} alt={s.delicias?.title || ''} className="w-full h-full object-cover" />
+              {s.delicias?.image_url && (
+                <img src={s.delicias.image_url} alt={s.delicias?.title || ''} className="w-full h-full object-cover" />
+              )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-primary-foreground leading-tight mb-4">
@@ -305,7 +311,9 @@ const Index = () => {
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
-              <img src={s.empresas?.image_url || sectionImages.empresas} alt={s.empresas?.title || ''} className="w-full h-full object-cover" />
+              {s.empresas?.image_url && (
+                <img src={s.empresas.image_url} alt={s.empresas?.title || ''} className="w-full h-full object-cover" />
+              )}
             </div>
           </div>
         </section>
@@ -334,7 +342,9 @@ const Index = () => {
         <section className="w-full bg-section-warm">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
-              <img src={s.visitanos?.image_url || sectionImages.visitanos} alt={s.visitanos?.title || ''} className="w-full h-full object-cover" />
+              {s.visitanos?.image_url && (
+                <img src={s.visitanos.image_url} alt={s.visitanos?.title || ''} className="w-full h-full object-cover" />
+              )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-4">

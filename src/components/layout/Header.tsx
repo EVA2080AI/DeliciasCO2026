@@ -29,6 +29,7 @@ export const Header = () => {
   const { sedes } = useSedes();
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas';
+  const brandNameMobile = settings.brand_name_mobile || 'DC Delicias';
   const brandSubtitle = settings.brand_subtitle || 'Arbey Cabrera · Originales desde 1985';
   const brandLogo = settings.brand_logo || logoImg;
   const socialInstagram = settings.social_instagram || '';
@@ -89,7 +90,7 @@ export const Header = () => {
             <div className="flex flex-col">
               <span className="font-display text-lg sm:text-xl text-foreground leading-none tracking-tight font-bold">
                 <span className="hidden sm:inline">{brandName}</span>
-                <span className="sm:hidden">DC Delicias</span>
+                <span className="sm:hidden">{brandNameMobile}</span>
               </span>
               <span className="text-[9px] text-muted-foreground font-semibold tracking-[0.18em] uppercase hidden md:block mt-0.5">{brandSubtitle}</span>
             </div>
