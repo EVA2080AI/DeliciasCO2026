@@ -69,14 +69,20 @@ const AdminSettings = () => {
     setUploading(key);
     try {
       const ext = file.name.split('.').pop();
-      const path = `site/${key}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file);
+      // Use a fixed path per key so old files are replaced, not accumulated
+      const path = `site/${key}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-      await updateSetting.mutateAsync({ key, value: urlData.publicUrl });
-      toast.success('Imagen subida');
-    } catch {
-      toast.error('Error al subir imagen');
+      // Append timestamp to bust browser & PWA cache
+      const urlWithCacheBust = `${urlData.publicUrl}?t=${Date.now()}`;
+      await updateSetting.mutateAsync({ key, value: urlWithCacheBust });
+      toast.success('Imagen subida y guardada ✓');
+    } catch (err) {
+      console.error('Error al subir imagen:', err);
+      toast.error('Error al subir imagen. Revisa la consola para más detalles.');
     } finally {
       setUploading(null);
     }

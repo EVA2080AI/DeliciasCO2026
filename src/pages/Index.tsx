@@ -63,7 +63,7 @@ const Index = () => {
   const featured = products.filter((p) => p.featured);
   const [slide, setSlide] = useState(0);
   usePageTitle();
-  const { sections } = usePageSectionsMap('index');
+  const { sections, isLoading: sectionsLoading } = usePageSectionsMap('index');
   const { tiendas } = useSedes();
 
   // Hero slides from DB or defaults
@@ -107,7 +107,24 @@ const Index = () => {
   return (
     <>
       {/* ====== HERO SLIDER ====== */}
-      {isActive('hero') && (
+      {sectionsLoading ? (
+        <section className="relative w-full bg-section-warm overflow-hidden">
+          <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[85vh]">
+            <div className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
+              <Skeleton className="h-3 w-32 mb-6" />
+              <Skeleton className="h-14 w-4/5 mb-3" />
+              <Skeleton className="h-14 w-3/5 mb-6" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-8" />
+              <div className="flex gap-3">
+                <Skeleton className="h-12 w-32 rounded-full" />
+                <Skeleton className="h-12 w-36 rounded-full" />
+              </div>
+            </div>
+            <Skeleton className="min-h-[350px] md:min-h-0 w-full" />
+          </div>
+        </section>
+      ) : isActive('hero') && (
         <section className="relative w-full bg-section-warm overflow-hidden">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[85vh]">
             <div className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1 relative z-10">
@@ -171,7 +188,7 @@ const Index = () => {
       )}
 
       {/* ====== FOLD 2 - Nuestros productos (Dark bg) ====== */}
-      {isActive('productos') && (
+      {!sectionsLoading && isActive('productos') && (
         <section className="w-full bg-section-dark">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
@@ -197,7 +214,7 @@ const Index = () => {
       )}
 
       {/* ====== FOLD 3 - Cafetería ====== */}
-      {isActive('cafeteria') && (
+      {!sectionsLoading && isActive('cafeteria') && (
         <section className="w-full bg-section-cream">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
@@ -223,7 +240,7 @@ const Index = () => {
       )}
 
       {/* ====== FOLD 4 - Delicias (Terracotta) ====== */}
-      {isActive('delicias') && (
+      {!sectionsLoading && isActive('delicias') && (
         <section className="w-full bg-section-terracotta">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
@@ -249,7 +266,7 @@ const Index = () => {
       )}
 
       {/* ====== FEATURED PRODUCTS ====== */}
-      {isActive('featured') && (
+      {!sectionsLoading && isActive('featured') && (
         <section className="w-full py-20 bg-background">
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <FadeInWhenVisible>
@@ -294,7 +311,7 @@ const Index = () => {
       )}
 
       {/* ====== Empresas (Dark bg) ====== */}
-      {isActive('empresas') && (
+      {!sectionsLoading && isActive('empresas') && (
         <section className="w-full bg-section-dark">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
@@ -320,7 +337,7 @@ const Index = () => {
       )}
 
       {/* ====== STATS ====== */}
-      {isActive('stats') && (
+      {!sectionsLoading && isActive('stats') && (
         <section className="w-full bg-section-cream py-16">
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
@@ -338,7 +355,7 @@ const Index = () => {
       )}
 
       {/* ====== Visítanos ====== */}
-      {isActive('visitanos') && (
+      {!sectionsLoading && isActive('visitanos') && (
         <section className="w-full bg-section-warm">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
@@ -372,7 +389,7 @@ const Index = () => {
       )}
 
       {/* ====== BLOG ====== */}
-      {isActive('blog') && <BlogSection sections={s} />}
+      {!sectionsLoading && isActive('blog') && <BlogSection sections={s} />}
     </>
   );
 };

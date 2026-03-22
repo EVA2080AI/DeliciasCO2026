@@ -32,7 +32,21 @@ import AdminMedia from "./pages/admin/AdminMedia";
 import AdminProfile from "./pages/admin/AdminProfile";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Always consider data stale immediately → fetches fresh data on every mount
+      staleTime: 0,
+      // gcTime: 0 → don't keep stale CMS data in memory between navigations
+      // This prevents the "flash of old content" where outdated images/text appear briefly
+      gcTime: 0,
+      // Retry once on failure
+      retry: 1,
+      // Refetch when user switches back to the tab
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

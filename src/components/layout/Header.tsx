@@ -41,7 +41,7 @@ export const Header = () => {
       const { data } = await supabase.from('pages').select('slug, active').eq('active', true);
       return data?.map(p => p.slug) || [];
     },
-    staleTime: 1000 * 60 * 10,
+    // staleTime: 0 — inherited globally; nav links update as soon as CMS changes them
   });
 
   const navLinks = useMemo(() => {

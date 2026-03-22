@@ -21,8 +21,8 @@ export const useSiteSettings = (category?: string) => {
       if (error) throw error;
       return (data || []) as SiteSetting[];
     },
-    staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: true,
+    // staleTime: 0 — inherited from QueryClient defaultOptions
+    // Always fetch fresh: logo, colors, brand name must reflect latest CMS changes
   });
 };
 

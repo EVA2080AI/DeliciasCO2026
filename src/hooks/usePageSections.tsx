@@ -28,7 +28,7 @@ export const usePageSections = (pageSlug: string) => {
       if (error) throw error;
       return (data || []) as PageSection[];
     },
-    staleTime: 1000 * 60 * 5,
+    // staleTime: 0 — inherited from QueryClient defaultOptions (always fresh CMS content)
   });
 };
 
@@ -70,6 +70,6 @@ export const useAllPageSections = () => {
       if (error) throw error;
       return (data || []) as PageSection[];
     },
-    staleTime: 1000 * 60 * 5,
+    // staleTime: 0 — inherited from QueryClient defaultOptions
   });
 };
