@@ -54,7 +54,7 @@ const AdminLayout = () => {
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas - Arbey Cabrera';
   const brandSlogan = settings.brand_slogan || 'Originales desde 1985';
-  const logoUrl = settings.logo_url || '';
+  const logoUrl = settings.brand_logo || '';
 
   // Fetch pages for the dropdown
   const { data: pages } = useQuery({
