@@ -20,11 +20,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const HARDCODED_ADMIN = 'admin@delicias.com';
-
 // Returns true if the user has 'admin' role in user_roles table
-const fetchIsAdmin = async (userId: string, email?: string): Promise<boolean> => {
-  if (email === HARDCODED_ADMIN) return true;
+const fetchIsAdmin = async (userId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('user_roles')
@@ -63,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(u);
       if (u) {
         // Wait for role check BEFORE setting loading=false so the redirect fires correctly
-        const adminResult = await fetchIsAdmin(u.id, u.email);
+        const adminResult = await fetchIsAdmin(u.id);
         if (!mounted) return;
         setIsAdmin(adminResult);
       } else {
@@ -78,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        const adminResult = await fetchIsAdmin(u.id, u.email);
+        const adminResult = await fetchIsAdmin(u.id);
         if (!mounted) return;
         setIsAdmin(adminResult);
       }
