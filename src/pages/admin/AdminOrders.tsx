@@ -44,6 +44,7 @@ const AdminOrders = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sedeFilter, setSedeFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin-orders'],
@@ -72,10 +73,42 @@ const AdminOrders = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      setSelectedIds(prev => prev.filter(selected => !selected)); // Reset if needed
       toast.success('Pedido eliminado permanentemente');
     },
     onError: () => {
       toast.error('Error al eliminar el pedido');
+    }
+  });
+
+  const deleteOrders = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      setSelectedIds([]);
+      toast.success('Pedidos eliminados correctamente');
+    },
+    onError: (error: any) => {
+      console.error('Error deleting orders:', error);
+      toast.error('Error al eliminar los pedidos');
+    }
+  });
+
+  const deleteAllOrders = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      setSelectedIds([]);
+      toast.success('Todos los pedidos han sido eliminados');
+    },
+    onError: () => {
+      toast.error('Error al vaciar la lista de pedidos');
     }
   });
 
@@ -87,6 +120,35 @@ const AdminOrders = () => {
     const matchSede = sedeFilter === 'all' || o.sede === sedeFilter;
     return matchSearch && matchStatus && matchSede;
   }) || [];
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length && filtered.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(o => o.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (confirm(`¿Estás seguro de que deseas eliminar ${selectedIds.length} pedidos seleccionados?`)) {
+      deleteOrders.mutate(selectedIds);
+    }
+  };
+
+  const handleClearAll = () => {
+    const confirm1 = confirm('¡ADVERTENCIA! ¿Estás seguro de que deseas eliminar ABSOLUTAMENTE TODOS los pedidos? Esta acción no se puede deshacer.');
+    if (confirm1) {
+      const confirm2 = confirm('Confirmación final: ¿Realmente quieres vaciar toda la base de datos de pedidos?');
+      if (confirm2) {
+        deleteAllOrders.mutate();
+      }
+    }
+  };
 
   const pendingCount = orders?.filter(o => o.status === 'pending').length || 0;
   const totalRevenue = filtered.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0);
@@ -140,7 +202,17 @@ const AdminOrders = () => {
               {orders?.length || 0} pedidos · {pendingCount > 0 && <span className="text-amber-600 font-semibold">{pendingCount} pendientes</span>}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-xl font-medium text-sm transition-colors"
+                disabled={deleteOrders.isPending}
+              >
+                {deleteOrders.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Borrar ({selectedIds.length})
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 border rounded-xl font-medium text-sm transition-colors"
@@ -156,26 +228,53 @@ const AdminOrders = () => {
         </div>
       </FadeInWhenVisible>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o teléfono..."
-            className={`${inputClass} pl-10 w-full`}
-          />
+      {/* Bulk Global Action & Filters */}
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3 flex-1">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nombre o teléfono..."
+                className={`${inputClass} pl-10 w-full`}
+              />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputClass}>
+              <option value="all">Todos los estados</option>
+              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select value={sedeFilter} onChange={(e) => setSedeFilter(e.target.value)} className={inputClass}>
+              <option value="all">Todas las sedes</option>
+              <option value="quirinal">Quirinal</option>
+              <option value="sprint">Sprint Norte</option>
+            </select>
+          </div>
+          <button
+            onClick={handleClearAll}
+            className="text-xs text-muted-foreground hover:text-destructive underline underline-offset-4 transition-colors px-2 py-1"
+            disabled={deleteAllOrders.isPending}
+          >
+            {deleteAllOrders.isPending ? 'Vaciando...' : 'Vaciar lista completa'}
+          </button>
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputClass}>
-          <option value="all">Todos los estados</option>
-          {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select value={sedeFilter} onChange={(e) => setSedeFilter(e.target.value)} className={inputClass}>
-          <option value="all">Todas las sedes</option>
-          <option value="quirinal">Quirinal</option>
-          <option value="sprint">Sprint Norte</option>
-        </select>
+
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-secondary/30 rounded-lg">
+            <input
+              type="checkbox"
+              checked={selectedIds.length === filtered.length && filtered.length > 0}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 rounded border-muted text-primary focus:ring-primary/20"
+            />
+            <span className="text-xs font-medium text-muted-foreground">
+              {selectedIds.length > 0 
+                ? `${selectedIds.length} pedidos seleccionados` 
+                : 'Seleccionar todos los pedidos visibles'}
+            </span>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -188,23 +287,33 @@ const AdminOrders = () => {
         <div className="space-y-3">
           {filtered.map((o) => {
             const isExpanded = expandedId === o.id;
+            const isSelected = selectedIds.includes(o.id);
             return (
-              <div key={o.id} className="bg-card border rounded-2xl shadow-soft overflow-hidden">
+              <div key={o.id} className={`bg-card border rounded-2xl shadow-soft overflow-hidden transition-all ${isSelected ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
                 <div
                   className="flex flex-wrap items-center justify-between gap-3 p-5 cursor-pointer hover:bg-secondary/30 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : o.id)}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-medium">{o.customer_name}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[o.status]}`}>
-                        {statusLabels[o.status]}
-                      </span>
-                      <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full capitalize">{o.sede}</span>
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleSelect(o.id)}
+                      className="w-4 h-4 rounded border-muted text-primary focus:ring-primary/20"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-medium">{o.customer_name}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[o.status]}`}>
+                          {statusLabels[o.status]}
+                        </span>
+                        <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full capitalize">{o.sede}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" /> {formatDate(o.created_at)} · {o.customer_phone}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" /> {formatDate(o.created_at)} · {o.customer_phone}
-                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-display font-bold text-primary">{formatPrice(o.total)}</span>
@@ -291,5 +400,6 @@ const AdminOrders = () => {
     </div>
   );
 };
+
 
 export default AdminOrders;

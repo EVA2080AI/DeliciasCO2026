@@ -9,23 +9,19 @@ import cafeImg from '@/assets/images/cafe-premium.jpg';
 import { usePageSectionsMap } from '@/hooks/usePageSections';
 import { useMemo } from 'react';
 
+const defaultValues = [
+  { icon: HandHeart, title: 'Artesanal 100%', desc: 'Cada producto hecho a mano con recetas familiares transmitidas por generaciones. Nunca industrializado.' },
+  { icon: Leaf, title: 'Ingredientes frescos', desc: 'Sin conservantes ni procesados. Todo se prepara diariamente con ingredientes colombianos de primera calidad.' },
+  { icon: Heart, title: 'Raíces campesinas', desc: 'Nuestras recetas nacieron en el Caquetá y se perfeccionaron en Bogotá. Cada bocado lleva la esencia de la tradición colombiana.' },
+];
 
 const milestoneIcons = [Briefcase, Heart, GraduationCap, ChefHat];
 
 const NosotrosPage = () => {
-  const { sections: s, isLoading: sectionsLoading } = usePageSectionsMap('nosotros');
+  const { sections: s } = usePageSectionsMap('nosotros');
   usePageTitle('Nuestra Historia');
 
-  const isActive = (key: string) => !sectionsLoading && s[key]?.active !== false;
-
-  const statsItems = useMemo(() => {
-    try {
-      const meta = s.stats?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
-    } catch { /* fall through */ }
-    return [];
-  }, [s.stats]);
+  const isActive = (key: string) => s[key]?.active !== false;
 
   const valores = useMemo(() => {
     try {
@@ -33,7 +29,7 @@ const NosotrosPage = () => {
       const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
       if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
     } catch { /* fall through */ }
-    return [];
+    return defaultValues;
   }, [s.valores]);
 
   const milestones = useMemo(() => {
@@ -42,7 +38,12 @@ const NosotrosPage = () => {
       const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
       if (parsed?.milestones && Array.isArray(parsed.milestones)) return parsed.milestones;
     } catch { /* fall through */ }
-    return [];
+    return [
+      { title: 'Primeros Pasos', desc: 'Su primer empleo remunerado fue como mensajero en una zapatería.' },
+      { title: 'Esfuerzo Físico', desc: 'Trabajó como ayudante de obra cargando ladrillos y realizando mezclas.' },
+      { title: 'Formación Profesional', desc: 'Logró estudiar Ingeniería Electrónica en la Universidad Antonio Nariño.' },
+      { title: 'Experiencia Comercial', desc: 'Trabajó en ventas en el entonces naciente negocio Foto Japón.' },
+    ];
   }, [s.disciplina]);
 
   const paragraph2Origen = useMemo(() => {
@@ -61,7 +62,19 @@ const NosotrosPage = () => {
     } catch { return ''; }
   }, [s.promesa]);
 
-
+  const statsItems = useMemo(() => {
+    try {
+      const meta = s.stats?.metadata;
+      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
+      if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
+    } catch { /* fall through */ }
+    return [
+      { value: 40, suffix: '+', label: 'Años de tradición' },
+      { value: 60, suffix: '+', label: 'Productos artesanales' },
+      { value: 2, suffix: '', label: 'Sedes en Bogotá' },
+      { value: 10000, suffix: '+', label: 'Clientes felices' },
+    ];
+  }, [s.stats]);
 
   return (
     <>
@@ -71,23 +84,19 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[70vh]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                {s.hero?.subtitle}
+                {s.hero?.subtitle || 'Nuestra Historia'}
               </p>
               <h1 className="font-display text-4xl md:text-5xl text-white leading-tight mb-6">
-                {s.hero?.title}
+                {s.hero?.title || '¿Quién está detrás del pastel de pollo más famoso de Bogotá?'}
               </h1>
-              {s.hero?.content && (
-                <p className="text-white/60 text-base leading-relaxed max-w-md mb-8">
-                  {s.hero.content}
-                </p>
-              )}
-              {s.hero?.cta_link && (
-                <div className="flex flex-wrap gap-3">
-                  <Link to={s.hero.cta_link} className="btn-outline-light gap-2">
-                    {s.hero?.cta_text} <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              )}
+              <p className="text-white/60 text-base leading-relaxed max-w-md mb-8">
+                {s.hero?.content || 'Esta es la historia de Arbey Cabrera...'}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link to={s.hero?.cta_link || '/menu'} className="btn-outline-light gap-2">
+                  {s.hero?.cta_text || 'Conoce nuestro menú'} <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2">
               {s.hero?.image_url && (
@@ -109,14 +118,14 @@ const NosotrosPage = () => {
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                {s.origen?.subtitle}
+                {s.origen?.subtitle || 'Un Comienzo Forjado en la Resiliencia'}
               </span>
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-6">
-                {s.origen?.title}
+                {s.origen?.title || 'María Obdulia Zapata: el coraje de una madre'}
               </h2>
               <div className="space-y-4 text-muted-foreground text-base leading-relaxed max-w-md">
-                {s.origen?.content && <p>{s.origen.content}</p>}
-                {paragraph2Origen && <p>{paragraph2Origen}</p>}
+                <p>{s.origen?.content || 'Todo comenzó en la década de 1980 en Florencia, Caquetá. Tras la pérdida de nuestro padre por la violencia del conflicto armado, nuestra madre, María Obdulia Zapata, con 8 hijos a cargo, nos enseñó el valor del trabajo duro marcando el inicio de nuestra tradición repostera.'}</p>
+                <p>{paragraph2Origen || 'Con este espíritu de supervivencia y recetas caseras inigualables, plantamos la semilla de lo que hoy es Delicias Colombianas.'}</p>
               </div>
             </FadeInWhenVisible>
           </div>
@@ -129,16 +138,14 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                {s.disciplina?.subtitle}
+                {s.disciplina?.subtitle || 'Disciplina y Esfuerzo'}
               </span>
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-6">
-                {s.disciplina?.title}
+                {s.disciplina?.title || 'La disciplina de un emprendedor'}
               </h2>
-              {s.disciplina?.content && (
-                <p className="text-muted-foreground text-base leading-relaxed max-w-md mb-6">
-                  {s.disciplina.content}
-                </p>
-              )}
+              <p className="text-muted-foreground text-base leading-relaxed max-w-md mb-6">
+                {s.disciplina?.content || 'El camino no fue fácil. Arbey Cabrera forjó su carácter desde muy joven trabajando incansablemente, demostrando que con tenacidad cualquier sueño es posible.'}
+              </p>
               <div className="space-y-4 max-w-md">
                 {milestones.map((item: { title: string; desc: string }, idx: number) => {
                   const Icon = milestoneIcons[idx % milestoneIcons.length];
@@ -172,16 +179,14 @@ const NosotrosPage = () => {
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                {s.ingenieria?.subtitle}
+                {s.ingenieria?.subtitle || 'El Giro Definitivo'}
               </span>
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-6">
-                {s.ingenieria?.title}
+                {s.ingenieria?.title || 'De la ingeniería al corazón del hojaldre'}
               </h2>
-              {s.ingenieria?.content && (
-                <div className="space-y-4 text-muted-foreground text-base leading-relaxed max-w-md">
-                  <p>{s.ingenieria.content}</p>
-                </div>
-              )}
+              <div className="space-y-4 text-muted-foreground text-base leading-relaxed max-w-md">
+                <p>{s.ingenieria?.content || 'A pesar de haberse graduado como Ingeniero Electrónico, el llamado de la tradición familiar y su visión lo llevaron a transformar sus conocimientos técnicos en un proceso artesanal estandarizado, garantizando sabor y calidad inigualables.'}</p>
+              </div>
             </FadeInWhenVisible>
           </div>
         </section>
@@ -193,21 +198,17 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto px-8 py-20 md:px-16 lg:px-24 text-center">
             <FadeInWhenVisible>
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4 block">
-                {s.promesa?.subtitle}
+                {s.promesa?.subtitle || 'Nuestra Promesa'}
               </span>
               <h2 className="font-display text-3xl md:text-4xl text-white leading-tight mb-6 max-w-3xl mx-auto">
-                {s.promesa?.title}
+                {s.promesa?.title || 'Ofrecerte lo MEJOR!'}
               </h2>
-              {s.promesa?.content && (
-                <p className="text-white/60 text-base leading-relaxed max-w-2xl mx-auto mb-4">
-                  {s.promesa.content}
-                </p>
-              )}
-              {paragraph2Promesa && (
-                <p className="text-white/50 text-base leading-relaxed max-w-2xl mx-auto">
-                  {paragraph2Promesa}
-                </p>
-              )}
+              <p className="text-white/60 text-base leading-relaxed max-w-2xl mx-auto mb-4">
+                {s.promesa?.content || 'Nuestra misión es simple pero poderosa: entregarte el mejor pastel de pollo de Colombia, horneado diariamente con ingredientes frescos, 100% artesanales y el amor de una familia resiliente.'}
+              </p>
+              <p className="text-white/50 text-base leading-relaxed max-w-2xl mx-auto">
+                {paragraph2Promesa || 'Cada vez que nos visitas, no solo estás disfrutando de una comida; estás apoyando una historia de superación y tradición que sigue viva en cada bocado.'}
+              </p>
             </FadeInWhenVisible>
           </div>
         </section>
@@ -219,16 +220,12 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <FadeInWhenVisible>
               <div className="text-center mb-14">
-                {s.valores?.title && (
-                  <h2 className="font-display text-3xl md:text-4xl text-foreground mb-3">
-                    {s.valores.title}
-                  </h2>
-                )}
-                {s.valores?.content && (
-                  <p className="text-muted-foreground max-w-lg mx-auto">
-                    {s.valores.content}
-                  </p>
-                )}
+                <h2 className="font-display text-3xl md:text-4xl text-foreground mb-3">
+                  {s.valores?.title || 'Lo que nos define'}
+                </h2>
+                <p className="text-muted-foreground max-w-lg mx-auto">
+                  {s.valores?.content || 'Los mismos valores que forjaron esta historia.'}
+                </p>
               </div>
             </FadeInWhenVisible>
             <StaggerContainer className="grid sm:grid-cols-3 gap-8" staggerDelay={0.1}>
@@ -275,19 +272,15 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[400px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-white leading-tight mb-4">
-                {s.cta?.title}
+                {s.cta?.title || 'Conoce más en nuestro blog'}
               </h2>
-              {s.cta?.content && (
-                <p className="text-white/60 text-base leading-relaxed mb-8 max-w-md">
-                  {s.cta.content}
-                </p>
-              )}
+              <p className="text-white/60 text-base leading-relaxed mb-8 max-w-md">
+                {s.cta?.content || 'Recetas tradicionales y la historia de la pastelería colombiana.'}
+              </p>
               <div className="flex flex-wrap gap-3">
-                {s.cta?.cta_link && (
-                  <Link to={s.cta.cta_link} className="btn-outline-light gap-2">
-                    {s.cta?.cta_text} <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )}
+                <Link to={s.cta?.cta_link || '/blog'} className="btn-outline-light gap-2">
+                  {s.cta?.cta_text || 'Ir al blog'} <ArrowRight className="w-4 h-4" />
+                </Link>
                 <Link to="/menu" className="btn-outline-light">Ver menú</Link>
               </div>
             </FadeInWhenVisible>

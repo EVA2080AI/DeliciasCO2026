@@ -3,6 +3,12 @@ import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import heroImg from '@/assets/images/hero-pastel.jpg';
+import pastelImg from '@/assets/images/pastel-real.jpg';
+import cafeImg from '@/assets/images/cafe-premium.jpg';
+import pandebonoImg from '@/assets/images/pan-de-bono.jpg';
+import empanadaImg from '@/assets/images/empanada.jpg';
+import jugoImg from '@/assets/images/jugo-natural.jpg';
 import { useProducts } from '@/hooks/useProducts';
 import ProductCard from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +18,46 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePageSectionsMap } from '@/hooks/usePageSections';
 import { useSedes } from '@/hooks/useSedes';
 
+const defaultHeroSlides = [
+  {
+    tag: 'Tradición desde 1985',
+    title: 'El mejor pastel de pollo de Colombia',
+    desc: 'Recetas artesanales transmitidas por generaciones. Horneado fresco cada mañana, con los mejores ingredientes colombianos.',
+    cta: { to: '/menu', label: 'Pedir ahora' },
+    cta2: { to: '/nosotros', label: 'Nuestra historia' },
+  },
+  {
+    tag: 'Café de origen',
+    title: 'El mejor café colombiano en cada taza',
+    desc: 'Granos seleccionados del Huila y Nariño, tostados con pasión. Acompaña tu pastel favorito con un café excepcional.',
+    cta: { to: '/menu?cat=cafeteria', label: 'Ver cafetería' },
+    cta2: { to: '/sedes', label: 'Visítanos' },
+  },
+  {
+    tag: 'Delicias artesanales',
+    title: 'Pan de bono, almojábanas y más',
+    desc: 'Las delicias colombianas que nos definen. Recetas auténticas del Valle, Boyacá y Bogotá en cada bocado.',
+    cta: { to: '/menu?cat=delicias', label: 'Ver delicias' },
+    cta2: { to: '/institucional', label: 'Pedidos empresariales' },
+  },
+];
+
+const heroImages = [heroImg, cafeImg, pandebonoImg];
+const sectionImages: Record<string, string> = {
+  productos: pastelImg,
+  cafeteria: cafeImg,
+  delicias: pandebonoImg,
+  empresas: empanadaImg,
+  visitanos: jugoImg,
+};
+
+const defaultStats = [
+  { value: 40, suffix: '+', label: 'Años de tradición' },
+  { value: 60, suffix: '+', label: 'Productos artesanales' },
+  { value: 2, suffix: '', label: 'Sedes en Bogotá' },
+  { value: 10000, suffix: '+', label: 'Clientes felices' },
+];
+
 const Index = () => {
   const { data: products = [], isLoading } = useProducts();
   const featured = products.filter((p) => p.featured);
@@ -20,7 +66,7 @@ const Index = () => {
   const { sections, isLoading: sectionsLoading } = usePageSectionsMap('index');
   const { tiendas } = useSedes();
 
-  // Hero slides — exclusively from CMS (no hardcoded defaults)
+  // Hero slides from DB or defaults
   const heroSlides = useMemo(() => {
     const heroSection = sections.hero;
     if (heroSection?.metadata) {
@@ -29,10 +75,10 @@ const Index = () => {
         if (meta.slides && Array.isArray(meta.slides) && meta.slides.length > 0) return meta.slides;
       } catch { /* fall through */ }
     }
-    return [];
+    return defaultHeroSlides;
   }, [sections.hero]);
 
-  // Stats — exclusively from CMS (no hardcoded defaults)
+  // Stats from DB or defaults
   const stats = useMemo(() => {
     const statsSection = sections.stats;
     if (statsSection?.metadata) {
@@ -41,7 +87,7 @@ const Index = () => {
         if (meta.items && Array.isArray(meta.items)) return meta.items;
       } catch { /* fall through */ }
     }
-    return [];
+    return defaultStats;
   }, [sections.stats]);
 
   const next = useCallback(() => setSlide((s) => (s + 1) % heroSlides.length), [heroSlides.length]);
@@ -78,7 +124,7 @@ const Index = () => {
             <Skeleton className="min-h-[350px] md:min-h-0 w-full" />
           </div>
         </section>
-      ) : isActive('hero') && current && (
+      ) : isActive('hero') && (
         <section className="relative w-full bg-section-warm overflow-hidden">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[85vh]">
             <div className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1 relative z-10">
@@ -100,8 +146,8 @@ const Index = () => {
                     {current.desc}
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    {current.cta?.to && <Link to={current.cta.to} className="btn-primary">{current.cta.label}</Link>}
-                    {current.cta2?.to && <Link to={current.cta2.to} className="btn-outline">{current.cta2.label}</Link>}
+                    <Link to={current.cta.to} className="btn-primary">{current.cta.label}</Link>
+                    <Link to={current.cta2.to} className="btn-outline">{current.cta2.label}</Link>
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -124,20 +170,18 @@ const Index = () => {
               </div>
             </div>
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2 overflow-hidden">
-              {current?.img && (
-                <AnimatePresence mode="wait">
-                  <motion.img
-                    key={slide}
-                    src={current.img}
-                    alt={current.title}
-                    initial={{ opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </AnimatePresence>
-              )}
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={slide}
+                  src={current.img || heroImages[slide % heroImages.length]}
+                  alt={current.title}
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </AnimatePresence>
             </div>
           </div>
         </section>
@@ -154,18 +198,16 @@ const Index = () => {
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-white leading-tight mb-4">
-                {s.productos?.title}
+                {s.productos?.title || 'Más de 60 productos artesanales'}
               </h2>
               <p className="text-white/60 text-base leading-relaxed mb-8 max-w-md">
-                {s.productos?.content}
+                {s.productos?.content || 'Pasteles, empanadas, almojábanas, pan de bono, café premium colombiano y mucho más.'}
               </p>
-              {s.productos?.cta_link && (
-                <div>
-                  <Link to={s.productos.cta_link} className="btn-outline-light">
-                    {s.productos?.cta_text}
-                  </Link>
-                </div>
-              )}
+              <div>
+                <Link to={s.productos?.cta_link || '/menu'} className="btn-outline-light">
+                  {s.productos?.cta_text || 'Ver menú completo'}
+                </Link>
+              </div>
             </FadeInWhenVisible>
           </div>
         </section>
@@ -177,18 +219,16 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-4">
-                {s.cafeteria?.title}
+                {s.cafeteria?.title || 'Café colombiano de origen'}
               </h2>
               <p className="text-muted-foreground text-base leading-relaxed mb-8 max-w-md">
-                {s.cafeteria?.content}
+                {s.cafeteria?.content || 'Granos seleccionados del Huila y Nariño.'}
               </p>
-              {s.cafeteria?.cta_link && (
-                <div>
-                  <Link to={s.cafeteria.cta_link} className="btn-primary">
-                    {s.cafeteria?.cta_text}
-                  </Link>
-                </div>
-              )}
+              <div>
+                <Link to={s.cafeteria?.cta_link || '/menu?cat=cafeteria'} className="btn-primary">
+                  {s.cafeteria?.cta_text || 'Descubrir cafetería'}
+                </Link>
+              </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
               {s.cafeteria?.image_url && (
@@ -210,18 +250,16 @@ const Index = () => {
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-primary-foreground leading-tight mb-4">
-                {s.delicias?.title}
+                {s.delicias?.title || 'Pan de bono, almojábanas y más'}
               </h2>
               <p className="text-primary-foreground/70 text-base leading-relaxed mb-8 max-w-md">
-                {s.delicias?.content}
+                {s.delicias?.content || 'Las delicias colombianas que nos definen.'}
               </p>
-              {s.delicias?.cta_link && (
-                <div>
-                  <Link to={s.delicias.cta_link} className="btn-outline-light">
-                    {s.delicias?.cta_text}
-                  </Link>
-                </div>
-              )}
+              <div>
+                <Link to={s.delicias?.cta_link || '/menu?cat=delicias'} className="btn-outline-light">
+                  {s.delicias?.cta_text || 'Explorar delicias'}
+                </Link>
+              </div>
             </FadeInWhenVisible>
           </div>
         </section>
@@ -233,16 +271,12 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <FadeInWhenVisible>
               <div className="text-center mb-14">
-                {s.featured?.title && (
-                  <h2 className="font-display text-3xl md:text-4xl text-foreground mb-3">
-                    {s.featured.title}
-                  </h2>
-                )}
-                {s.featured?.content && (
-                  <p className="text-muted-foreground text-base max-w-lg mx-auto">
-                    {s.featured.content}
-                  </p>
-                )}
+                <h2 className="font-display text-3xl md:text-4xl text-foreground mb-3">
+                  {s.featured?.title || 'Los favoritos de nuestros clientes'}
+                </h2>
+                <p className="text-muted-foreground text-base max-w-lg mx-auto">
+                  {s.featured?.content || 'Más de 40 años perfeccionando estas recetas.'}
+                </p>
               </div>
             </FadeInWhenVisible>
             {isLoading ? (
@@ -282,18 +316,16 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1">
               <h2 className="font-display text-3xl md:text-4xl text-white leading-tight mb-4">
-                {s.empresas?.title}
+                {s.empresas?.title || '¿Pedidos para tu empresa?'}
               </h2>
               <p className="text-white/60 text-base leading-relaxed mb-8 max-w-md">
-                {s.empresas?.content}
+                {s.empresas?.content || 'Desayunos corporativos, eventos y catering.'}
               </p>
-              {s.empresas?.cta_link && (
-                <div>
-                  <Link to={s.empresas.cta_link} className="btn-outline-light">
-                    {s.empresas?.cta_text}
-                  </Link>
-                </div>
-              )}
+              <div>
+                <Link to={s.empresas?.cta_link || '/institucional'} className="btn-outline-light">
+                  {s.empresas?.cta_text || 'Cotizar ahora'}
+                </Link>
+              </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
               {s.empresas?.image_url && (
@@ -333,13 +365,11 @@ const Index = () => {
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <h2 className="font-display text-3xl md:text-4xl text-foreground leading-tight mb-4">
-                {s.visitanos?.title}
+                {s.visitanos?.title || 'Visítanos en nuestras sedes'}
               </h2>
-              {s.visitanos?.content && (
-                <p className="text-muted-foreground text-base leading-relaxed mb-4 max-w-md">
-                  {s.visitanos.content}
-                </p>
-              )}
+              <p className="text-muted-foreground text-base leading-relaxed mb-4 max-w-md">
+                {s.visitanos?.content || 'Dos ubicaciones en Bogotá para que disfrutes la experiencia.'}
+              </p>
               <ul className="space-y-2 mb-8 text-sm text-foreground/80">
                 {tiendas.map((sede) => (
                   <li key={sede.id} className="flex items-center gap-2">
@@ -348,11 +378,9 @@ const Index = () => {
                 ))}
               </ul>
               <div className="flex flex-wrap gap-3">
-                {s.visitanos?.cta_link && (
-                  <Link to={s.visitanos.cta_link} className="btn-primary">
-                    {s.visitanos?.cta_text}
-                  </Link>
-                )}
+                <Link to={s.visitanos?.cta_link || '/sedes'} className="btn-primary">
+                  {s.visitanos?.cta_text || 'Ver ubicaciones'}
+                </Link>
                 <Link to="/preguntas-frecuentes" className="btn-outline">Preguntas frecuentes</Link>
               </div>
             </FadeInWhenVisible>

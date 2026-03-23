@@ -70,6 +70,7 @@ const BlogPage = () => {
       if (error) throw error;
       return data as BlogPost[];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   if (isLoading) {

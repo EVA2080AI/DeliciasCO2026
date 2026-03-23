@@ -10,36 +10,28 @@ const iconMap: Record<string, typeof Users> = {
 };
 
 const SedesPage = () => {
-  const { sections: s, isLoading: sectionsLoading } = usePageSectionsMap('sedes');
+  const { sections: s } = usePageSectionsMap('sedes');
   const { sedes, isLoading } = useSedes();
   usePageTitle('Sedes');
 
   return (
     <>
       {/* Hero */}
-      {!sectionsLoading && (
-        <section className="w-full bg-section-warm">
-          <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-16 md:py-24 text-center">
-            <FadeInWhenVisible>
-              {s.hero?.subtitle && (
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                  {s.hero.subtitle}
-                </p>
-              )}
-              {s.hero?.title && (
-                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground mb-4">
-                  {s.hero.title}
-                </h1>
-              )}
-              {s.hero?.content && (
-                <p className="text-muted-foreground text-base max-w-lg mx-auto">
-                  {s.hero.content}
-                </p>
-              )}
-            </FadeInWhenVisible>
-          </div>
-        </section>
-      )}
+      <section className="w-full bg-section-warm">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-16 md:py-24 text-center">
+          <FadeInWhenVisible>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
+              {s.hero?.subtitle || 'Visítanos'}
+            </p>
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground mb-4">
+              {s.hero?.title || 'Nuestras sedes'}
+            </h1>
+            <p className="text-muted-foreground text-base max-w-lg mx-auto">
+              {s.hero?.content || `${sedes.length > 0 ? sedes.length : 'Nuestras'} ubicaciones en Bogotá para vivir la experiencia Delicias Colombianas.`}
+            </p>
+          </FadeInWhenVisible>
+        </div>
+      </section>
 
       <section className="w-full py-12 bg-background">
         <div className="max-w-[1440px] mx-auto px-6 lg:px-10">

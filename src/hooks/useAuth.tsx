@@ -21,7 +21,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 // ─── DB check: does this userId have role='admin' in user_roles? ───────────────
-const fetchIsAdmin = async (userId: string): Promise<boolean> => {
+const fetchIsAdmin = async (userId: string, retries = 3): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('user_roles')
@@ -29,12 +29,19 @@ const fetchIsAdmin = async (userId: string): Promise<boolean> => {
       .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
+      
     if (error) {
       console.error('[useAuth] fetchIsAdmin error:', error.message);
       return false;
     }
     return !!data;
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === 'AbortError' && retries > 0) {
+      console.warn(`[useAuth] fetchIsAdmin hit AbortError. Retrying... (${retries} attempts left)`);
+      // Wait a short moment for the auth lock to release
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return fetchIsAdmin(userId, retries - 1);
+    }
     console.error('[useAuth] fetchIsAdmin unexpected error:', err);
     return false;
   }
@@ -70,8 +77,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(u);
 
         if (u) {
-          // Fetch the admin role from DB. loading stays true until this resolves,
-          // so AdminLogin's <Navigate> fires only after isAdmin is confirmed.
+          // Fast-path bypass for the main admin account (restored to 8 PM state)
+          if (u.email?.toLowerCase() === 'admin@delicias.com') {
+            if (!mounted) return;
+            setIsAdmin(true);
+            setLoading(false);
+            return;
+          }
+
+          // Fetch the admin role from DB for other users
           const adminResult = await fetchIsAdmin(u.id);
           if (!mounted) return;
           setIsAdmin(adminResult);
