@@ -93,8 +93,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    // NOTE: onAuthStateChange will handle setting user + isAdmin automatically
-    // after signInWithPassword resolves. No need to call fetchIsAdmin here.
+    if (!error && data.user) {
+      // Keep loading=true so the spinner stays visible while onAuthStateChange
+      // runs fetchIsAdmin and triggers the /admin redirect.
+      // onAuthStateChange will call setLoading(false) once isAdmin is confirmed.
+      setLoading(true);
+    }
     return { error: error as Error | null };
   };
 
