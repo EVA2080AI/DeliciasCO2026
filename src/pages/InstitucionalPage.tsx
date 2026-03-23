@@ -123,15 +123,19 @@ const InstitucionalPage = () => {
       <section className="w-full bg-section-warm">
         <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-16 md:py-24 text-center">
           <FadeInWhenVisible>
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-5">
-              <Building2 className="w-3.5 h-3.5" /> {s.hero?.subtitle || 'Servicio B2B'}
-            </span>
+            {s.hero?.subtitle && (
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-5">
+                <Building2 className="w-3.5 h-3.5" /> {s.hero.subtitle}
+              </span>
+            )}
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground mb-4">
-              {s.hero?.title || 'Cotización Corporativa'}
+              {s.hero?.title}
             </h1>
-            <p className="text-muted-foreground text-base max-w-lg mx-auto">
-              {s.hero?.content || 'Arma tu paquete para eventos, desayunos corporativos o catering.'}
-            </p>
+            {s.hero?.content && (
+              <p className="text-muted-foreground text-base max-w-lg mx-auto">
+                {s.hero.content}
+              </p>
+            )}
           </FadeInWhenVisible>
         </div>
       </section>
