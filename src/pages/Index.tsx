@@ -78,7 +78,7 @@ const Index = () => {
             <Skeleton className="min-h-[350px] md:min-h-0 w-full" />
           </div>
         </section>
-      ) : isActive('hero') && (
+      ) : isActive('hero') && current && (
         <section className="relative w-full bg-section-warm overflow-hidden">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[85vh]">
             <div className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1 relative z-10">
@@ -100,8 +100,8 @@ const Index = () => {
                     {current.desc}
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <Link to={current.cta.to} className="btn-primary">{current.cta.label}</Link>
-                    <Link to={current.cta2.to} className="btn-outline">{current.cta2.label}</Link>
+                    {current.cta?.to && <Link to={current.cta.to} className="btn-primary">{current.cta.label}</Link>}
+                    {current.cta2?.to && <Link to={current.cta2.to} className="btn-outline">{current.cta2.label}</Link>}
                   </div>
                 </motion.div>
               </AnimatePresence>
