@@ -77,8 +77,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(u);
 
         if (u) {
-          // Fast-path bypass for the main admin account (restored to 8 PM state)
-          if (u.email?.toLowerCase() === 'admin@delicias.com') {
+          // Fast-path bypass for the main admin accounts (restored to 8 PM state + qa added)
+          if (
+            u.email?.toLowerCase() === 'admin@delicias.com' ||
+            u.email?.toLowerCase() === 'deliciascolombianas1985@gmail.com'
+          ) {
             if (!mounted) return;
             setIsAdmin(true);
             setLoading(false);
