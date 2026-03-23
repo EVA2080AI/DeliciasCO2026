@@ -1,6 +1,6 @@
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Returns true if the user has 'admin' role in user_roles table
+// ─── DB check: does this userId have role='admin' in user_roles? ───────────────
 const fetchIsAdmin = async (userId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
@@ -30,82 +30,76 @@ const fetchIsAdmin = async (userId: string): Promise<boolean> => {
       .eq('role', 'admin')
       .maybeSingle();
     if (error) {
-      console.error('[useAuth] checkAdmin error:', error.message);
+      console.error('[useAuth] fetchIsAdmin error:', error.message);
       return false;
     }
     return !!data;
   } catch (err) {
-    console.error('[useAuth] Unexpected checkAdmin error:', err);
+    console.error('[useAuth] fetchIsAdmin unexpected error:', err);
     return false;
   }
 };
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser]       = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout — never stay loading forever
-    const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
-
-    // onAuthStateChange fires on every session change (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        // Wait for role check BEFORE setting loading=false so the redirect fires correctly
-        const adminResult = await fetchIsAdmin(u.id);
-        if (!mounted) return;
-        setIsAdmin(adminResult);
-      } else {
-        setIsAdmin(false);
+    // Safety net — if something hangs, unblock after 8s
+    const safetyTimer = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('[useAuth] Safety timeout triggered — forcing loading=false');
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    }, 8000);
 
-    // Also check the current session on mount (handles page refresh)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        const adminResult = await fetchIsAdmin(u.id);
+    // Single source of truth: onAuthStateChange handles ALL state transitions.
+    // - INITIAL_SESSION fires on mount with the persisted session (replaces getSession())
+    // - SIGNED_IN fires after signInWithPassword succeeds
+    // - SIGNED_OUT fires after signOut()
+    // - TOKEN_REFRESHED fires on auto-refresh
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
-        setIsAdmin(adminResult);
+
+        const u = session?.user ?? null;
+        setUser(u);
+
+        if (u) {
+          // Fetch the admin role from DB. loading stays true until this resolves,
+          // so AdminLogin's <Navigate> fires only after isAdmin is confirmed.
+          const adminResult = await fetchIsAdmin(u.id);
+          if (!mounted) return;
+          setIsAdmin(adminResult);
+        } else {
+          setIsAdmin(false);
+        }
+
+        // Only set loading=false AFTER role check is done.
+        setLoading(false);
       }
-      setLoading(false);
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
+    );
 
     return () => {
       mounted = false;
-      clearTimeout(timeout);
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // signIn: purely delegates to Supabase. State is handled by onAuthStateChange above.
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error && data.user) {
-      // Keep loading=true so the spinner stays visible while onAuthStateChange
-      // runs fetchIsAdmin and triggers the /admin redirect.
-      // onAuthStateChange will call setLoading(false) once isAdmin is confirmed.
-      setLoading(true);
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
   };
 
   return (

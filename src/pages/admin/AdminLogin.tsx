@@ -39,10 +39,11 @@ const AdminLogin = () => {
       toast.error('Credenciales inválidas. Por favor, verifica tu correo y contraseña.', {
         icon: <Info className="w-4 h-4 text-destructive" />
       });
-    } else {
-      toast.success('Bienvenido de nuevo al panel de administración.');
+      setSubmitting(false);
     }
-    setSubmitting(false);
+    // On success: don't reset submitting or show toast.
+    // onAuthStateChange will set isAdmin=true → loading=false → Navigate fires.
+    // The spinner continues showing until the redirect happens.
   };
 
   const currentYear = new Date().getFullYear();
