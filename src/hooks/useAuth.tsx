@@ -20,68 +20,67 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const HARDCODED_ADMIN = 'admin@delicias.com';
+
+// Returns true if the user has 'admin' role in user_roles table
+const fetchIsAdmin = async (userId: string, email?: string): Promise<boolean> => {
+  if (email === HARDCODED_ADMIN) return true;
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    if (error) {
+      console.error('[useAuth] checkAdmin error:', error.message);
+      return false;
+    }
+    return !!data;
+  } catch (err) {
+    console.error('[useAuth] Unexpected checkAdmin error:', err);
+    return false;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const checkAdmin = async (userId: string, email?: string) => {
-    if (email === 'admin@delicias.com') {
-      setIsAdmin(true);
-      setLoading(false);
-      return;
-    }
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-        
-      if (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
-      } else if (data && data.role === 'admin') {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    } catch (err) {
-      console.error('Unexpected error checking admin role:', err);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     let mounted = true;
 
     // Safety timeout — never stay loading forever
     const timeout = setTimeout(() => {
-      if (mounted && loading) {
-        setLoading(false);
-      }
-    }, 4000);
+      if (mounted) setLoading(false);
+    }, 5000);
 
+    // onAuthStateChange fires on every session change (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        await checkAdmin(u.id, u.email);
+        // Wait for role check BEFORE setting loading=false so the redirect fires correctly
+        const adminResult = await fetchIsAdmin(u.id, u.email);
+        if (!mounted) return;
+        setIsAdmin(adminResult);
       } else {
         setIsAdmin(false);
       }
       setLoading(false);
     });
 
+    // Also check the current session on mount (handles page refresh)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        await checkAdmin(u.id, u.email);
+        const adminResult = await fetchIsAdmin(u.id, u.email);
+        if (!mounted) return;
+        setIsAdmin(adminResult);
       }
       setLoading(false);
     }).catch(() => {
@@ -97,10 +96,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error && data.user) {
-      setUser(data.user);
-      await checkAdmin(data.user.id, data.user.email);
-    }
+    // NOTE: onAuthStateChange will handle setting user + isAdmin automatically
+    // after signInWithPassword resolves. No need to call fetchIsAdmin here.
     return { error: error as Error | null };
   };
 
