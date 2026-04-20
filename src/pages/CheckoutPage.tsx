@@ -90,17 +90,17 @@ const CheckoutPage = () => {
     const sedeName = selectedSede?.name || activeSede;
     const deliveryInfo = deliveryType === 'pickup'
       ? `Recoge en: ${sedeName}\nHora: ${pickupTime}`
-      : `Envío a: ${address.trim()}${addressDetail.trim() ? ` (${addressDetail.trim()})` : ''}${neighborhood.trim() ? ` — Barrio: ${neighborhood.trim()}` : ''}`;
+      : `Envío a: ${address.trim()}${addressDetail.trim() ? ` (${addressDetail.trim()})` : ''}${neighborhood.trim() ? ` — Barrio: ${neighborhood.trim()}` : ''}\n(Despacha: ${sedeName})`;
 
     const { error } = await supabase.from('orders').insert({
       customer_name: name.trim(),
       customer_phone: phone.trim(),
-      sede: deliveryType === 'pickup' ? activeSede : 'envio',
+      sede: activeSede,
       notes: [
         `FECHA PEDIDO: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}`,
         requestedDate ? `FECHA DESEADA: ${requestedDate}` : '',
         company.trim() ? `EMPRESA: ${company.trim()}` : '',
-        deliveryType === 'delivery' ? `ENVÍO: ${address.trim()} ${addressDetail.trim()} ${neighborhood.trim()}` : `RECOGE: ${activeSede} a las ${pickupTime}`,
+        deliveryType === 'delivery' ? `ENVÍO: ${address.trim()} ${addressDetail.trim()} ${neighborhood.trim()} (Sede que despacha: ${sedeName})` : `RECOGE: ${activeSede} a las ${pickupTime}`,
         notes.trim(),
       ].filter(Boolean).join(' | ') || null,
       items: items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
@@ -130,7 +130,7 @@ const CheckoutPage = () => {
       `*Total: ${formatPrice(totalPrice())}*`,
     ].filter(s => s !== undefined && s !== null && (typeof s === 'string' ? s !== '' : true)).join('\n');
 
-    const whatsappNum = deliveryType === 'pickup' && selectedSede ? selectedSede.whatsapp : (tiendas[0]?.whatsapp || '');
+    const whatsappNum = selectedSede ? selectedSede.whatsapp : (tiendas[0]?.whatsapp || '');
     window.open(`https://wa.me/${whatsappNum}?text=${encodeURIComponent(msg)}`, '_blank');
     clearCart();
     setSubmitting(false);
@@ -202,6 +202,36 @@ const CheckoutPage = () => {
                 )}
               </div>
 
+              {/* Sede selector (Global) */}
+              <div>
+                <label className="text-sm font-medium mb-2.5 block text-muted-foreground">
+                  {deliveryType === 'pickup' ? 'Sede de recogida *' : 'Sede que despachará tu pedido *'}
+                </label>
+                <div className="flex gap-3">
+                  {tiendas.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSedeId(s.id)}
+                      className={`relative flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 ${
+                        activeSede === s.id ? 'text-primary-foreground' : 'bg-background hover:bg-secondary text-foreground'
+                      }`}
+                    >
+                      {activeSede === s.id && (
+                        <motion.div
+                          layoutId="activeSede"
+                          className="absolute inset-0 bg-primary rounded-xl"
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <div className="relative z-10">
+                        <span className="block">{s.name.replace('Sede ', '')}</span>
+                        <span className="text-[10px] opacity-70">{s.address.split(',')[0]}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Delivery type selector */}
               <div>
                 <label className="text-sm font-medium mb-2.5 block text-muted-foreground">¿Cómo deseas recibir tu pedido?</label>
@@ -244,32 +274,7 @@ const CheckoutPage = () => {
                     transition={{ duration: 0.25 }}
                     className="space-y-4 overflow-hidden"
                   >
-                    <div>
-                      <label className="text-sm font-medium mb-2.5 block text-muted-foreground">Sede de recogida</label>
-                      <div className="flex gap-3">
-                        {tiendas.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => setSedeId(s.id)}
-                            className={`relative flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 ${
-                              activeSede === s.id ? 'text-primary-foreground' : 'bg-background hover:bg-secondary text-foreground'
-                            }`}
-                          >
-                            {activeSede === s.id && (
-                              <motion.div
-                                layoutId="activeSede"
-                                className="absolute inset-0 bg-primary rounded-xl"
-                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                              />
-                            )}
-                            <div className="relative z-10">
-                              <span className="block">{s.name.replace('Sede ', '')}</span>
-                              <span className="text-[10px] opacity-70">{s.address.split(',')[0]}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+
                     <div>
                       <label className="text-sm font-medium mb-2.5 block text-muted-foreground">Hora aproximada de recogida *</label>
                       <input
