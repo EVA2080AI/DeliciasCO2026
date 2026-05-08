@@ -366,13 +366,32 @@ const AdminOrders = () => {
                             </select>
                           </div>
                           <a
-                            href={`https://wa.me/${sedes.find(s => s.id === o.sede || s.name.toLowerCase().includes(o.sede))?.whatsapp || sedes[0]?.whatsapp || '573158924567'}?text=${encodeURIComponent(`Hola ${o.customer_name}, te contactamos de Delicias Colombianas sobre tu pedido por ${formatPrice(o.total)}.`)}`}
+                            href={(() => {
+                              const phone = o.customer_phone.replace(/\D/g, '');
+                              const fullPhone = phone.startsWith('57') ? phone : `57${phone}`;
+                              const items = Array.isArray(o.items)
+                                ? (o.items as Array<{ name: string; quantity: number; price?: number }>)
+                                    .map(i => `• ${i.quantity}x ${i.name}${i.price ? ` (${formatPrice(i.price * i.quantity)})` : ''}`)
+                                    .join('\n')
+                                : '';
+                              const msg = [
+                                `Hola ${o.customer_name} 👋, te escribimos de *Delicias Colombianas*.`,
+                                ``,
+                                `Te contactamos sobre tu pedido:`,
+                                items,
+                                ``,
+                                `*Total: ${formatPrice(o.total)}*`,
+                                `Estado actual: *${statusLabels[o.status]}*`,
+                                o.notes ? `\nNotas: ${o.notes}` : '',
+                              ].filter(s => s !== undefined && s !== null).join('\n');
+                              return `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
+                            })()}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <MessageCircle className="w-3.5 h-3.5" /> Contactar
+                            <MessageCircle className="w-3.5 h-3.5" /> Contactar cliente
                           </a>
                           <button
                             onClick={(e) => {
