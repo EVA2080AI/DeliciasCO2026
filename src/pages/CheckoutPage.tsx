@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ThumbImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useCartStore } from '@/store/cartStore';
 import { Link, useNavigate } from 'react-router-dom';
@@ -163,7 +164,7 @@ const CheckoutPage = () => {
                 {items.map((i) => (
                   <div key={i.product.id} className="flex justify-between text-sm items-center">
                     <div className="flex items-center gap-3">
-                      <img src={i.product.image} alt={i.product.name} className="w-10 h-10 rounded-lg object-cover" />
+                      <ThumbImage src={i.product.image} alt={i.product.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover" />
                       <span>{i.quantity}x {i.product.name}</span>
                     </div>
                     <span className="font-medium">{formatPrice(i.product.price * i.quantity)}</span>

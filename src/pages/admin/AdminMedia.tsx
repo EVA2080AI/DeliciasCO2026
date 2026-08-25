@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Image as ImageIcon, Loader2, Trash2, Copy, Search, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { compressImage } from '@/lib/imageCompression';
+import { uploadOptimizedImage, MAX_UPLOAD_BYTES } from '@/lib/storage';
 
 export const AdminMedia = () => {
   const [files, setFiles] = useState<{name: string, url: string, created_at: string, size: number}[]>([]);
@@ -77,12 +77,7 @@ export const AdminMedia = () => {
     if (!stagedFile) return;
     setUploading(true);
     try {
-      const compressedFile = await compressImage(stagedFile);
-      const fileExt = compressedFile.name.split('.').pop();
-      const fileName = `media-${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage.from('product-images').upload(fileName, compressedFile);
-      
-      if (error) throw error;
+      await uploadOptimizedImage({ file: stagedFile, preset: 'section', prefix: 'media' });
       toast.success('Imagen subida y guardada correctamente');
       setStagedFile(null);
       setStagedPreview(null);

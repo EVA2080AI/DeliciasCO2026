@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { ThumbImage } from '@/components/ThumbImage';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAllPageSections, useUpdatePageSection, PageSection } from '@/hooks/usePageSections';
 import { Loader2, Eye, EyeOff, Save, ChevronDown, ChevronRight, Image as ImageIcon, Upload, ArrowLeft, Layers, Monitor, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
-import { compressImage } from '@/lib/imageCompression';
+import { uploadOptimizedImage, isImageFile, MAX_UPLOAD_BYTES } from '@/lib/storage';
 import { MediaSelectorModal } from '@/components/admin/MediaSelectorModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -127,7 +127,7 @@ const SectionPreview = ({ section, getVal }: { section: PageSection; getVal: (id
   const imgBlock = (
     <div className="bg-muted/20 overflow-hidden">
       {imageUrl ? (
-        <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+        <ThumbImage src={imageUrl} alt="" className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 bg-muted/10">
           <ImageIcon className="w-8 h-8" />
@@ -279,7 +279,7 @@ const HeroSliderEditor = ({
                   <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Imagen</label>
                   <div className="flex items-center gap-3">
                     {slide.img && (
-                      <img src={slide.img} alt="" className="w-12 h-12 object-cover rounded-lg border" />
+                      <ThumbImage src={slide.img} alt="" className="w-12 h-12 object-cover rounded-lg border" />
                     )}
                     <div className="flex-1 space-y-2">
                       <input
@@ -423,15 +423,12 @@ const AdminSections = () => {
   };
 
   const handleImageUpload = async (sectionId: string, file: File) => {
+    if (!isImageFile(file)) { toast.error('Solo se permiten imágenes'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { toast.error('La imagen no debe superar 12MB'); return; }
     setUploading(sectionId);
     try {
-      const compressedFile = await compressImage(file);
-      const ext = compressedFile.name.split('.').pop();
-      const path = `section-${sectionId}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('product-images').upload(path, compressedFile);
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-      await updateSection.mutateAsync({ id: sectionId, image_url: urlData.publicUrl });
+      const { url } = await uploadOptimizedImage({ file, preset: 'section', prefix: `section-${sectionId}` });
+      await updateSection.mutateAsync({ id: sectionId, image_url: url });
       toast.success('Imagen subida');
     } catch {
       toast.error('Error al subir imagen');
@@ -591,7 +588,7 @@ const AdminSections = () => {
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Imagen</label>
                             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                               {getVal(section.id, 'image_url') && (
-                                <img src={getVal(section.id, 'image_url') as string} alt="" className="w-16 h-16 object-cover rounded-lg border flex-shrink-0" />
+                                <ThumbImage src={getVal(section.id, 'image_url') as string} alt="" className="w-16 h-16 object-cover rounded-lg border flex-shrink-0" />
                               )}
                               <div className="flex-1 w-full space-y-2">
                                 <input
@@ -628,19 +625,16 @@ const AdminSections = () => {
                                 onOpenMedia={(slideIdx, field) => setSliderMediaTarget({ id: section.id, slide: slideIdx, field })}
                                 uploading={uploading}
                                 onImageUpload={async (idx, field, file) => {
+                                  if (!isImageFile(file)) { toast.error('Solo se permiten imágenes'); return; }
+                                  if (file.size > MAX_UPLOAD_BYTES) { toast.error('La imagen no debe superar 12MB'); return; }
                                   setUploading(`slide-${idx}`);
                                   try {
-                                    const compressed = await compressImage(file);
-                                    const ext = compressed.name.split('.').pop();
-                                    const path = `slide-${section.id}-${idx}-${Date.now()}.${ext}`;
-                                    const { error } = await supabase.storage.from('product-images').upload(path, compressed);
-                                    if (error) throw error;
-                                    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-                                    
+                                    const { url } = await uploadOptimizedImage({ file, preset: 'hero', prefix: `slide-${section.id}-${idx}` });
+
                                     const currentMeta = getVal(section.id, 'metadata') as any;
                                     const newSlides = [...(currentMeta?.slides || [])];
                                     if (newSlides[idx]) {
-                                      newSlides[idx][field] = urlData.publicUrl;
+                                      newSlides[idx] = { ...newSlides[idx], [field]: url };
                                       setVal(section.id, 'metadata', { ...currentMeta, slides: newSlides });
                                     }
                                     toast.success('Imagen de diapositiva subida');

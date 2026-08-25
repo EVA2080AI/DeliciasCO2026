@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
@@ -7,7 +8,7 @@ import { toast } from 'sonner';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { Switch } from '@/components/ui/switch';
 import { MediaSelectorModal } from '@/components/admin/MediaSelectorModal';
-import { compressImage } from '@/lib/imageCompression';
+import { uploadOptimizedImage, MAX_UPLOAD_BYTES } from '@/lib/storage';
 import type { Database } from '@/integrations/supabase/types';
 
 type Product = Database['public']['Tables']['products']['Row'];
@@ -184,7 +185,7 @@ const AdminProducts = () => {
                   <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      <ThumbImage src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                         <ImageIcon className="w-5 h-5" />
@@ -230,7 +231,7 @@ const AdminProducts = () => {
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      <ThumbImage src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                         <ImageIcon className="w-5 h-5" />
@@ -303,18 +304,12 @@ const ProductForm = ({
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Solo se permiten imágenes'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error('La imagen no debe superar 5MB'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { toast.error('La imagen no debe superar 12MB'); return; }
 
     setUploading(true);
     try {
-      const compressedFile = await compressImage(file);
-      const fileExt = compressedFile.name.split('.').pop();
-      const fileName = `product-${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage.from('product-images').upload(fileName, compressedFile);
-      if (error) throw error;
-      
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
-      setImageUrl(urlData.publicUrl);
+      const { url } = await uploadOptimizedImage({ file, preset: 'product', prefix: 'product' });
+      setImageUrl(url);
       toast.success('Imagen subida correctamente');
     } catch (err: any) {
       toast.error(`Error al subir imagen: ${err.message}`);
@@ -394,7 +389,7 @@ const ProductForm = ({
 
         {imageUrl && (
           <div className="flex items-center gap-3">
-            <img src={imageUrl} alt="Preview" className="w-20 h-20 rounded-xl object-cover border" />
+            <ThumbImage src={imageUrl} alt="Preview" className="w-20 h-20 rounded-xl object-cover border" />
             <button type="button" onClick={() => setImageUrl('')} className="text-xs text-destructive hover:underline">Quitar imagen</button>
           </div>
         )}

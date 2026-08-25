@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { ThumbImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { Building2, FileText, Send, CalendarDays, Clock, Store, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -161,7 +162,7 @@ const InstitucionalPage = () => {
               <div className="space-y-2">
                 {products.map((p) => (
                   <div key={p.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-background border hover:border-primary/30 transition-colors">
-                    <img src={p.image} alt={p.name} className="w-12 h-12 rounded-lg object-cover" />
+                    <ThumbImage src={p.image} alt={p.name} width={48} height={48} className="w-12 h-12 rounded-lg object-cover" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{formatPrice(p.price)} c/u</p>

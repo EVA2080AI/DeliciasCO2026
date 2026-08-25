@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
+import { SafeImage } from '@/components/ThumbImage';
 import { useSiteSettings, useUpdateSiteSetting, SiteSetting } from '@/hooks/useSiteSettings';
 import { Settings, Palette, Phone, Share2, MapPin, Search as SearchIcon, Save, Loader2, Image, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { uploadOptimizedImage, removeByUrl, isImageFile, MAX_UPLOAD_BYTES } from '@/lib/storage';
+import type { ImagePreset } from '@/lib/imageCompression';
 
 const categoryMeta: Record<string, { label: string; icon: typeof Settings; description: string }> = {
   brand: { label: 'Identidad Visual (Colores, Logos, Tipografía)', icon: Palette, description: 'ATENCIÓN: Color Primario es para Botones y Acentos. Fondo principal se ajusta solo.' },
@@ -65,24 +67,28 @@ const AdminSettings = () => {
     }
   };
 
+  const presetForSettingKey = (key: string): ImagePreset => {
+    if (key === 'brand_logo') return 'logo';
+    if (key === 'seo_og_image') return 'og';
+    if (key === 'login_cover_image') return 'cover';
+    return 'section';
+  };
+
   const handleImageUpload = async (key: string, file: File) => {
+    if (!isImageFile(file)) { toast.error('Solo se permiten imágenes'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { toast.error('La imagen no debe superar 12MB'); return; }
     setUploading(key);
+    const previousUrl = getValue(key);
     try {
-      const ext = file.name.split('.').pop();
-      // Use a fixed path per key so old files are replaced, not accumulated
-      const path = `site/${key}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-      // Append timestamp to bust browser & PWA cache
-      const urlWithCacheBust = `${urlData.publicUrl}?t=${Date.now()}`;
-      await updateSetting.mutateAsync({ key, value: urlWithCacheBust });
+      // Nombre único por subida: nunca se reescribe una ruta existente (el CDN la cachea un año).
+      const { url } = await uploadOptimizedImage({ file, preset: presetForSettingKey(key), prefix: key, folder: 'site' });
+      await updateSetting.mutateAsync({ key, value: url });
       toast.success('Imagen subida y guardada ✓');
+      // La versión anterior deja de usarse: liberar espacio en el bucket.
+      if (previousUrl && previousUrl !== url) removeByUrl(previousUrl).catch(() => {});
     } catch (err) {
       console.error('Error al subir imagen:', err);
-      toast.error('Error al subir imagen. Revisa la consola para más detalles.');
+      toast.error('Error al subir imagen. Intenta de nuevo.');
     } finally {
       setUploading(null);
     }
@@ -352,7 +358,7 @@ const AdminSettings = () => {
       const currentVal = getValue(s.key);
       return (
         <div className="space-y-2">
-          {currentVal && <img src={currentVal} alt={s.label} className="w-24 h-24 object-contain rounded-lg border" />}
+          {currentVal && <SafeImage src={currentVal} alt={s.label} className="w-24 h-24 object-contain rounded-lg border" />}
           <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed cursor-pointer hover:bg-secondary/50 transition-colors text-sm text-muted-foreground">
             {uploading === s.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Image className="w-4 h-4" />}
             {uploading === s.key ? 'Subiendo...' : 'Subir imagen'}

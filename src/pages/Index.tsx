@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { SafeImage } from '@/components/ThumbImage';
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -175,6 +176,13 @@ const Index = () => {
                   key={slide}
                   src={current.img || heroImages[slide % heroImages.length]}
                   alt={current.title}
+                  loading={slide === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  {...(slide === 0 ? ({ fetchpriority: 'high' } as Record<string, string>) : {})}
+                  onError={(e) => {
+                    const fallback = heroImages[slide % heroImages.length];
+                    if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                  }}
                   initial={{ opacity: 0, scale: 1.05 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
@@ -193,7 +201,7 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
               {s.productos?.image_url && (
-                <img src={s.productos.image_url} alt={s.productos?.title || ''} className="w-full h-full object-cover" />
+                <SafeImage src={s.productos.image_url} alt={s.productos?.title || ''} className="w-full h-full object-cover" />
               )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
@@ -232,7 +240,7 @@ const Index = () => {
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
               {s.cafeteria?.image_url && (
-                <img src={s.cafeteria.image_url} alt={s.cafeteria?.title || ''} className="w-full h-full object-cover" />
+                <SafeImage src={s.cafeteria.image_url} alt={s.cafeteria?.title || ''} className="w-full h-full object-cover" />
               )}
             </div>
           </div>
@@ -245,7 +253,7 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
               {s.delicias?.image_url && (
-                <img src={s.delicias.image_url} alt={s.delicias?.title || ''} className="w-full h-full object-cover" />
+                <SafeImage src={s.delicias.image_url} alt={s.delicias?.title || ''} className="w-full h-full object-cover" />
               )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
@@ -329,7 +337,7 @@ const Index = () => {
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
               {s.empresas?.image_url && (
-                <img src={s.empresas.image_url} alt={s.empresas?.title || ''} className="w-full h-full object-cover" />
+                <SafeImage src={s.empresas.image_url} alt={s.empresas?.title || ''} className="w-full h-full object-cover" />
               )}
             </div>
           </div>
@@ -360,7 +368,7 @@ const Index = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden">
               {s.visitanos?.image_url && (
-                <img src={s.visitanos.image_url} alt={s.visitanos?.title || ''} className="w-full h-full object-cover" />
+                <SafeImage src={s.visitanos.image_url} alt={s.visitanos?.title || ''} className="w-full h-full object-cover" />
               )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">

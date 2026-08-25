@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ArrowLeft, Calendar, Clock, ChefHat } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -278,7 +279,7 @@ const BlogDetailPage = () => {
           <FadeInWhenVisible>
             {dbPost.image_url && (
               <div className="rounded-2xl overflow-hidden shadow-elevated mb-10">
-                <img src={dbPost.image_url} alt={dbPost.title} className="w-full aspect-[2/1] object-cover" />
+                <SafeImage src={dbPost.image_url} alt={dbPost.title} className="w-full aspect-[2/1] object-cover" priority />
               </div>
             )}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -331,7 +332,7 @@ const BlogDetailPage = () => {
 
         <FadeInWhenVisible>
           <div className="rounded-2xl overflow-hidden shadow-elevated mb-10">
-            <img src={article.image} alt={article.title} className="w-full aspect-[2/1] object-cover" />
+            <SafeImage src={article.image} alt={article.title} className="w-full aspect-[2/1] object-cover" priority />
           </div>
 
           <div className="flex items-center gap-3 mb-4 flex-wrap">

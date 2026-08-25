@@ -1,4 +1,5 @@
 import { X, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
+import { ThumbImage } from '@/components/ThumbImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { useSedes } from '@/hooks/useSedes';
@@ -73,9 +74,11 @@ const CartSlideOver = () => {
                         exit={{ opacity: 0, x: 50 }}
                         className="flex gap-3 p-3 bg-background rounded-xl border"
                       >
-                        <img
+                        <ThumbImage
                           src={item.product.image}
                           alt={item.product.name}
+                          width={64}
+                          height={64}
                           className="w-16 h-16 rounded-lg object-cover"
                         />
                         <div className="flex-1 min-w-0">

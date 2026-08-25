@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ArrowRight, HandHeart, Leaf, Heart, Briefcase, GraduationCap, ChefHat } from 'lucide-react';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem, CountUp } from '@/components/ScrollAnimations';
@@ -100,7 +101,7 @@ const NosotrosPage = () => {
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2">
               {s.hero?.image_url && (
-                <img src={s.hero.image_url} alt="Fundador de Delicias Colombianas" className="w-full h-full object-cover" />
+                <SafeImage src={s.hero.image_url} alt="Fundador de Delicias Colombianas" className="w-full h-full object-cover" priority />
               )}
             </div>
           </div>
@@ -113,7 +114,7 @@ const NosotrosPage = () => {
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0">
               {s.origen?.image_url && (
-                <img src={s.origen.image_url} alt="Tradición familiar" className="w-full h-full object-cover" />
+                <SafeImage src={s.origen.image_url} alt="Tradición familiar" className="w-full h-full object-cover" />
               )}
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
@@ -164,7 +165,7 @@ const NosotrosPage = () => {
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2">
-              <img src={s.disciplina?.image_url || pastelImg} alt="Emprendedor colombiano" className="w-full h-full object-cover" />
+              <SafeImage src={s.disciplina?.image_url || pastelImg} alt="Emprendedor colombiano" className="w-full h-full object-cover" />
             </div>
           </div>
         </section>
@@ -175,7 +176,7 @@ const NosotrosPage = () => {
         <section className="w-full bg-background">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
             <div className="relative min-h-[350px] md:min-h-0">
-              <img src={s.ingenieria?.image_url || cafeImg} alt="Panadería" className="w-full h-full object-cover" />
+              <SafeImage src={s.ingenieria?.image_url || cafeImg} alt="Panadería" className="w-full h-full object-cover" />
             </div>
             <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
@@ -285,7 +286,7 @@ const NosotrosPage = () => {
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[300px] md:min-h-0">
-              <img src={s.cta?.image_url || heroImg} alt="Blog" className="w-full h-full object-cover" />
+              <SafeImage src={s.cta?.image_url || heroImg} alt="Blog" className="w-full h-full object-cover" />
             </div>
           </div>
         </section>

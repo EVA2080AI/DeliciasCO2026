@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +7,7 @@ import { Plus, Pencil, Trash2, X, Eye, EyeOff, Upload, Loader2, Image as ImageIc
 import { toast } from 'sonner';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { Switch } from '@/components/ui/switch';
-import { compressImage } from '@/lib/imageCompression';
+import { uploadOptimizedImage, MAX_UPLOAD_BYTES } from '@/lib/storage';
 import { MediaSelectorModal } from '@/components/admin/MediaSelectorModal';
 
 interface BlogPost {
@@ -188,7 +189,7 @@ const AdminBlog = () => {
             >
               <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
                 {post.image_url ? (
-                  <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                  <ThumbImage src={post.image_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     <ImageIcon className="w-5 h-5" />
@@ -284,17 +285,11 @@ const BlogPostForm = ({
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Solo imágenes'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Máximo 5MB'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { toast.error('Máximo 12MB'); return; }
     setUploading(true);
     try {
-      const compressedFile = await compressImage(file);
-      const fileExt = compressedFile.name.split('.').pop();
-      const fileName = `blog-${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage.from('product-images').upload(fileName, compressedFile);
-      if (error) throw error;
-      
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
-      setImageUrl(urlData.publicUrl); 
+      const { url } = await uploadOptimizedImage({ file, preset: 'blog', prefix: 'blog' });
+      setImageUrl(url);
       toast.success('Imagen subida correctamente');
     } catch (err: any) { toast.error(`Error: ${err.message}`); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
@@ -366,7 +361,7 @@ const BlogPostForm = ({
 
         {imageUrl && (
           <div className="flex items-center gap-3">
-            <img src={imageUrl} alt="Preview" className="w-24 h-16 rounded-xl object-cover border" />
+            <ThumbImage src={imageUrl} alt="Preview" className="w-24 h-16 rounded-xl object-cover border" />
             <button type="button" onClick={() => setImageUrl('')} className="text-xs text-destructive hover:underline">Quitar</button>
           </div>
         )}

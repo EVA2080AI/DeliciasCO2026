@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ArrowLeft, Minus, Plus, ShoppingCart, MessageCircle, MapPin, Phone, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
@@ -83,7 +84,7 @@ const ProductDetail = () => {
               transition={{ duration: 0.5 }}
               className="rounded-2xl overflow-hidden shadow-elevated sticky top-24"
             >
-              <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
+              <SafeImage src={product.image} alt={product.name} className="w-full aspect-square object-cover" priority />
             </motion.div>
 
             <motion.div

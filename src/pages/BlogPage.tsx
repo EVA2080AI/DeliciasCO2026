@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -119,7 +120,7 @@ const BlogPage = () => {
       <section className="w-full bg-section-warm">
         <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 min-h-[500px]">
           <div className="relative min-h-[300px] md:min-h-0 overflow-hidden">
-            <img src={getBlogImage(first)} alt={first.title} className="w-full h-full object-cover" />
+            <SafeImage src={getBlogImage(first)} alt={first.title} className="w-full h-full object-cover" priority />
           </div>
           <FadeInWhenVisible className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24">
             <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
@@ -154,11 +155,12 @@ const BlogPage = () => {
                   <Link to={`/blog/${post.slug}`} className="group block h-full">
                     <div className="rounded-2xl overflow-hidden bg-section-cream h-full flex flex-col transition-all duration-300 hover:shadow-elevated">
                       <div className="aspect-[16/10] overflow-hidden bg-secondary">
-                          <img
+                          <SafeImage
                             src={getBlogImage(post)}
                             alt={post.title}
+                            width={800}
+                            height={500}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                            loading="lazy"
                           />
                       </div>
                       <div className="p-6 flex flex-col flex-1">
