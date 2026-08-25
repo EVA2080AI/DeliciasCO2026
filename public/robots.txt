@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /checkout
 
-Sitemap: https://delicias-ecosystem.lovable.app/sitemap.xml
+Sitemap: https://elmejorpasteldepollodc.com/sitemap.xml
