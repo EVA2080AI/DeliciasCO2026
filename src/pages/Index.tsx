@@ -4,12 +4,9 @@ import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import heroImg from '@/assets/images/hero-pastel.jpg';
-import pastelImg from '@/assets/images/pastel-real.jpg';
-import cafeImg from '@/assets/images/cafe-premium.jpg';
-import pandebonoImg from '@/assets/images/pan-de-bono.jpg';
-import empanadaImg from '@/assets/images/empanada.jpg';
-import jugoImg from '@/assets/images/jugo-natural.jpg';
+import heroImg from '@/assets/images/hero-pastel.webp';
+import cafeImg from '@/assets/images/cafe-premium.webp';
+import pandebonoImg from '@/assets/images/pan-de-bono.webp';
 import { useProducts } from '@/hooks/useProducts';
 import ProductCard from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,13 +41,6 @@ const defaultHeroSlides = [
 ];
 
 const heroImages = [heroImg, cafeImg, pandebonoImg];
-const sectionImages: Record<string, string> = {
-  productos: pastelImg,
-  cafeteria: cafeImg,
-  delicias: pandebonoImg,
-  empresas: empanadaImg,
-  visitanos: jugoImg,
-};
 
 const defaultStats = [
   { value: 40, suffix: '+', label: 'Años de tradición' },

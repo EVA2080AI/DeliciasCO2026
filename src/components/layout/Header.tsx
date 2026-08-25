@@ -8,7 +8,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
 import { useSedes } from '@/hooks/useSedes';
 import ThemeToggle from '../ThemeToggle';
-import logoImg from '@/assets/images/logo.png';
+import logoImg from '@/assets/images/logo.webp';
 
 const allNavLinks = [
   { to: '/', label: 'Inicio', slug: 'inicio' },
@@ -25,13 +25,13 @@ export const Header = () => {
   const location = useLocation();
   const { totalItems, toggleCart } = useCartStore();
   const count = totalItems();
-  const { settings } = useSiteSettingsMap();
+  const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
   const { sedes } = useSedes();
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas';
   const brandNameMobile = settings.brand_name_mobile || 'DC Delicias';
   const brandSubtitle = settings.brand_subtitle || 'Arbey Cabrera · Originales desde 1985';
-  const brandLogo = settings.brand_logo || logoImg;
+  const brandLogo = settingsLoading ? null : (settings.brand_logo || logoImg);
   const socialInstagram = settings.social_instagram || '';
   const socialFacebook = settings.social_facebook || '';
 
@@ -86,7 +86,7 @@ export const Header = () => {
       <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'shadow-medium bg-background/95 backdrop-blur-md' : 'bg-background'}`}>
         <div className="max-w-[1440px] mx-auto flex items-center justify-between h-[72px] px-4 lg:px-10">
           <Link to="/" className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <img src={brandLogo} alt={brandName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">{brandLogo && <img src={brandLogo} alt={brandName} width={48} height={48} decoding="async" className="w-full h-full object-contain" />}</div>
             <div className="flex flex-col">
               <span className="font-display text-lg sm:text-xl text-foreground leading-none tracking-tight font-bold">
                 <span className="hidden sm:inline">{brandName}</span>

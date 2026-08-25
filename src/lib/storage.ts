@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { extForMime, makeVariants, type ImagePreset } from '@/lib/imageCompression';
+import { makeVariants, type ImagePreset } from '@/lib/imageCompression';
+import { extForMime } from '@/lib/imageNames';
 import { BUCKET, bucketPathFromUrl, publicUrlForPath, thumbPathFor } from '@/lib/imageUrls';
 
 /** Un año: el CDN de Supabase (plan Free) cachea hasta expirar, por eso NUNCA se reescribe una ruta existente. */

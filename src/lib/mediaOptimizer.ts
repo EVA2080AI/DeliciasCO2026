@@ -5,7 +5,8 @@
  * en la base de datos, verifica y —solo si se pide— borra el original.
  */
 import { supabase } from '@/integrations/supabase/client';
-import { IMAGE_PRESETS, compressImage, extForMime, makeVariants, stripExt, type ImagePreset } from '@/lib/imageCompression';
+import { IMAGE_PRESETS, compressImage, makeVariants, type ImagePreset } from '@/lib/imageCompression';
+import { extForMime, stripExt } from '@/lib/imageNames';
 import { BUCKET, bucketPathFromUrl, isThumbPath, publicUrlForPath, thumbPathFor } from '@/lib/imageUrls';
 import { CACHE_CONTROL } from '@/lib/storage';
 

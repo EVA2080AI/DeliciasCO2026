@@ -5,7 +5,7 @@ import { Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Mail, Key, ShieldCheck, ArrowRight, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import logoImg from '@/assets/images/logo.png';
+import logoImg from '@/assets/images/logo.webp';
 
 const AdminLogin = () => {
   const { user, isAdmin, loading, signIn } = useAuth();

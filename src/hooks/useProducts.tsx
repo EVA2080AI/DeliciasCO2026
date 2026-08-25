@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/store/cartStore';
-import { imageMap } from '@/data/products';
 
 interface DbProduct {
   id: string;
@@ -24,7 +23,7 @@ const mapDbProduct = (p: DbProduct): Product => ({
   longDescription: p.long_description ?? undefined,
   price: p.price,
   category: p.category,
-  image: p.image_url || imageMap[p.name] || '/placeholder.svg',
+  image: p.image_url || '/placeholder.svg',
   featured: p.featured,
   requiresAdvanceNotice: p.requires_advance_notice ?? false,
 });

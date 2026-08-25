@@ -6,15 +6,15 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem } from '@/components/ScrollAnimations';
 import { Skeleton } from '@/components/ui/skeleton';
-import heroImg from '@/assets/images/hero-pastel.jpg';
-import pastelPolloImg from '@/assets/images/products/pastel-pollo.jpg';
-import pastelCarneImg from '@/assets/images/products/pastel-carne.jpg';
-import empanadaImg from '@/assets/images/products/empanada.jpg';
-import cafePremiumImg from '@/assets/images/products/cafe-premium.jpg';
-import panDeBonoImg from '@/assets/images/products/pan-de-bono.jpg';
-import almojabanaImg from '@/assets/images/products/almojabana.jpg';
-import chocolateImg from '@/assets/images/products/chocolate-queso.jpg';
-import pastelRealImg from '@/assets/images/pastel-real.jpg';
+import heroImg from '@/assets/images/hero-pastel.webp';
+import pastelPolloImg from '@/assets/images/pastel-pollo.webp';
+import pastelCarneImg from '@/assets/images/pastel-carne.webp';
+import empanadaImg from '@/assets/images/empanada.webp';
+import cafePremiumImg from '@/assets/images/cafe-premium.webp';
+import panDeBonoImg from '@/assets/images/pan-de-bono.webp';
+import almojabanaImg from '@/assets/images/almojabana.webp';
+import chocolateImg from '@/assets/images/chocolate-queso.webp';
+import pastelRealImg from '@/assets/images/pastel-real.webp';
 
 // Fallback images by blog slug for congruent visuals
 const blogImageMap: Record<string, string> = {

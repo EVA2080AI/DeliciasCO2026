@@ -2,15 +2,15 @@ import { Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Instagram, Facebook, Mail } from 'lucide-react';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
 import { useSedes } from '@/hooks/useSedes';
-import logoImg from '@/assets/images/logo.png';
+import logoImg from '@/assets/images/logo.webp';
 
 export const Footer = () => {
-  const { settings } = useSiteSettingsMap();
+  const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
   const { sedes } = useSedes();
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas';
   const brandSubtitle = settings.brand_subtitle || 'Arbey Cabrera · Originales desde 1985';
-  const brandLogo = settings.brand_logo || logoImg;
+  const brandLogo = settingsLoading ? null : (settings.brand_logo || logoImg);
   const socialInstagram = settings.social_instagram || '';
   const socialFacebook = settings.social_facebook || '';
 
@@ -32,7 +32,7 @@ export const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-12">
           <div className="md:col-span-4">
             <div className="flex items-center gap-3 mb-4">
-              <img src={brandLogo} alt={brandName} className="w-14 h-14 object-contain" />
+              <div className="w-14 h-14 flex-shrink-0">{brandLogo && <img src={brandLogo} alt={brandName} width={56} height={56} loading="lazy" decoding="async" className="w-full h-full object-contain" />}</div>
               <div>
                 <span className="font-display text-lg text-background leading-none tracking-tight">
                   {brandName}

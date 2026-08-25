@@ -3,10 +3,9 @@ import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ArrowRight, HandHeart, Leaf, Heart, Briefcase, GraduationCap, ChefHat } from 'lucide-react';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem, CountUp } from '@/components/ScrollAnimations';
-import heroImg from '@/assets/images/hero-pastel.jpg';
-import empanadaImg from '@/assets/images/empanada.jpg';
-import pastelImg from '@/assets/images/pastel-carne.jpg';
-import cafeImg from '@/assets/images/cafe-premium.jpg';
+import heroImg from '@/assets/images/hero-pastel.webp';
+import pastelImg from '@/assets/images/pastel-carne.webp';
+import cafeImg from '@/assets/images/cafe-premium.webp';
 import { usePageSectionsMap } from '@/hooks/usePageSections';
 import { useMemo } from 'react';
 

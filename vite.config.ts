@@ -18,11 +18,15 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "logo.png"],
+      injectRegister: null, // registro manual en src/pwa.ts (chequeo de actualización cada hora)
+      includeAssets: ["favicon.ico", "favicon-32.png", "apple-touch-icon.png", "pwa-192.png", "pwa-512.png"],
       workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        globPatterns: ["**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}"],
-        navigateFallbackDenylist: [/^\/~oauth/],
+        // Solo el app shell se precachea. Las imágenes se cachean bajo demanda (runtimeCaching).
+        globPatterns: ["**/*.{js,css,html,ico,svg,woff,woff2}"],
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/admin\/reset-password/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -33,6 +37,26 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
             handler: "CacheFirst",
             options: { cacheName: "gstatic-fonts-cache", expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          },
+          {
+            // Imágenes del CMS (Supabase Storage). Solo <img> (destination === 'image'): los fetch()
+            // programáticos del optimizador de medios no pasan por aquí. Las rutas son únicas por
+            // subida, así que un CacheFirst largo nunca sirve una imagen reemplazada.
+            urlPattern: ({ url, request }) =>
+              request.destination === "image" &&
+              url.hostname === "sqshrqbopwmxkfkvmmtd.supabase.co" &&
+              url.pathname.startsWith("/storage/v1/object/public/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "supabase-images",
+              expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 30, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ url, request }) => request.destination === "image" && url.pathname.startsWith("/assets/"),
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "static-images", expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
         ],
       },
@@ -47,8 +71,9 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         scope: "/",
         icons: [
-          { src: "/logo.png", sizes: "192x192", type: "image/png" },
-          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         categories: ["food", "lifestyle"],
         lang: "es",
@@ -58,6 +83,25 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    target: "es2020",
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run)[\\/]/.test(id)) return "react-vendor";
+            if (id.includes("@supabase")) return "supabase";
+            if (id.includes("@tanstack")) return "query";
+            if (/[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/.test(id)) return "motion";
+            return "vendor";
+          }
+          if (id.includes("/src/pages/admin/") || id.includes("/src/components/admin/")) return "admin";
+          return undefined;
+        },
+      },
     },
   },
 }));

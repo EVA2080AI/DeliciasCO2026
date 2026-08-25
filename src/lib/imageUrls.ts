@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { stripExt } from '@/lib/imageCompression';
+import { stripExt } from '@/lib/imageNames';
 
 export const BUCKET = 'product-images';
 const PUBLIC_PREFIX = `/storage/v1/object/public/${BUCKET}/`;

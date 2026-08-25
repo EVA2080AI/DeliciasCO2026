@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, Navigate, useSearchParams } from 'react-router-dom';
-import logoImg from '@/assets/images/logo.png';
+import logoImg from '@/assets/images/logo.webp';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
 import { useQuery } from '@tanstack/react-query';
@@ -46,7 +46,7 @@ const slugToSectionSlug: Record<string, string> = {
 
 const AdminLayout = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
-  const { settings } = useSiteSettingsMap();
+  const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,7 +54,7 @@ const AdminLayout = () => {
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas - Arbey Cabrera';
   const brandSlogan = settings.brand_slogan || 'Originales desde 1985';
-  const logoUrl = settings.brand_logo || '';
+  const logoUrl = settingsLoading ? null : (settings.brand_logo || logoImg);
 
   // Fetch pages for the dropdown
   const { data: pages } = useQuery({
@@ -120,7 +120,7 @@ const AdminLayout = () => {
     <>
       <div className="p-5 border-b">
         <div className="flex items-center gap-2.5">
-          <img src={logoUrl || logoImg} alt="Logo" className="w-10 h-10 object-contain" />
+          <div className="w-10 h-10">{logoUrl && <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />}</div>
           <div>
             <span className="font-display text-sm font-bold text-foreground leading-none block">
               {brandName}
@@ -239,7 +239,7 @@ const AdminLayout = () => {
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-card border-b h-14 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <img src={logoUrl || logoImg} alt="Logo" className="w-8 h-8 object-contain" />
+          <div className="w-8 h-8">{logoUrl && <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />}</div>
           <div>
             <span className="font-display text-xs font-bold">{brandName}</span>
             <span className="block text-[8px] text-muted-foreground font-semibold tracking-wider">{brandSlogan}</span>

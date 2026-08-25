@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { Skeleton } from '@/components/ui/skeleton';
-import heroImg from '@/assets/images/hero-pastel.jpg';
+import heroImg from '@/assets/images/hero-pastel.webp';
 
 interface BlogArticle {
   slug: string;
