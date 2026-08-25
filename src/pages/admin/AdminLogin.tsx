@@ -1,23 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Lock, Mail, Key, ShieldCheck, ArrowRight, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import logoImg from '@/assets/images/logo.webp';
 
 const AdminLogin = () => {
-  const { user, isAdmin, loading, signIn } = useAuth();
+  usePageTitle('Acceso al panel');
+  const { user, isAdmin, loading, signIn, signOut } = useAuth();
   const { data: settings } = useSiteSettings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [forgotHint, setForgotHint] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const rejectingRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Usuario autenticado pero sin rol admin: antes se quedaba en "Verificando…" para siempre.
+  useEffect(() => {
+    if (loading || !user || isAdmin || rejectingRef.current) return;
+    rejectingRef.current = true;
+    signOut().finally(() => {
+      rejectingRef.current = false;
+      setSubmitting(false);
+      toast.error('Tu cuenta no tiene permisos de administrador', {
+        icon: <Info className="w-4 h-4 text-destructive" />,
+      });
+    });
+  }, [loading, user, isAdmin, signOut]);
 
   if (loading || !mounted) {
     return (
@@ -34,7 +54,7 @@ const AdminLogin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email.trim(), password);
     if (error) {
       toast.error('Credenciales inválidas. Por favor, verifica tu correo y contraseña.', {
         icon: <Info className="w-4 h-4 text-destructive" />
@@ -43,14 +63,34 @@ const AdminLogin = () => {
     }
     // On success: don't reset submitting or show toast.
     // onAuthStateChange will set isAdmin=true → loading=false → Navigate fires.
-    // The spinner continues showing until the redirect happens.
+    // If the account is not an admin, the effect above signs out and re-enables the form.
+  };
+
+  const handleForgotPassword = async () => {
+    const target = email.trim();
+    if (!target) {
+      setForgotHint(true);
+      emailRef.current?.focus();
+      return;
+    }
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/admin/reset-password`,
+    });
+    setSendingReset(false);
+    if (error) {
+      toast.error(`No se pudo enviar el enlace: ${error.message}`);
+      return;
+    }
+    setForgotHint(false);
+    toast.success(`Si ${target} tiene cuenta, recibirá un enlace para crear una nueva contraseña.`);
   };
 
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="min-h-screen w-full flex bg-[#F8FAFC] dark:bg-background overflow-hidden relative">
-      
+
       {/* Background Decorators */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[30%] rounded-full bg-amber-500/20 blur-[100px] pointer-events-none" />
@@ -58,16 +98,16 @@ const AdminLogin = () => {
       {/* Left Panel - Brand / Visual */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 overflow-hidden bg-primary/5">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={settings?.find(s => s.key === 'login_cover_image')?.value || "https://images.unsplash.com/photo-1555507036-ab1f40ce88ca?q=80&w=2692&auto=format&fit=crop"} 
-            alt="Fondo Delicias Colombianas" 
+          <img
+            src={settings?.find(s => s.key === 'login_cover_image')?.value || "https://images.unsplash.com/photo-1555507036-ab1f40ce88ca?q=80&w=2692&auto=format&fit=crop"}
+            alt="Fondo Delicias Colombianas"
             className="w-full h-full object-cover opacity-80"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/80" />
         </div>
-        
+
         <div className="relative z-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.8 }}
@@ -76,7 +116,7 @@ const AdminLogin = () => {
             <ShieldCheck className="w-4 h-4 text-primary" />
             <span className="text-xs font-semibold tracking-wider uppercase">Acceso Restringido</span>
           </motion.div>
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.8 }}
@@ -86,7 +126,7 @@ const AdminLogin = () => {
           </motion.h2>
         </div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 1 }}
@@ -99,7 +139,7 @@ const AdminLogin = () => {
 
       {/* Right Panel - Form (Glassmorphism) */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 relative z-10">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
@@ -127,30 +167,40 @@ const AdminLogin = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground uppercase tracking-wider ml-1">Correo Electrónico</label>
+                <label htmlFor="admin-email" className="text-xs font-bold text-foreground uppercase tracking-wider ml-1">Correo Electrónico</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   </div>
                   <input
+                    id="admin-email"
+                    ref={emailRef}
                     type="email"
+                    autoComplete="username"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); if (forgotHint) setForgotHint(false); }}
                     placeholder="admin@delicias.com"
                     required
                     className="w-full pl-11 pr-4 py-3.5 bg-background/50 border-2 border-transparent focus:border-primary/50 focus:bg-background rounded-xl font-medium text-sm transition-all outline-none hover:bg-background/80 shadow-sm"
                   />
                 </div>
+                {forgotHint && (
+                  <p className="text-xs text-primary font-medium ml-1" role="status">
+                    Escribe tu correo aquí y vuelve a pulsar "¿Olvidaste tu contraseña?" para recibir el enlace.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground uppercase tracking-wider ml-1">Contraseña</label>
+                <label htmlFor="admin-password" className="text-xs font-bold text-foreground uppercase tracking-wider ml-1">Contraseña</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Key className="h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   </div>
                   <input
+                    id="admin-password"
                     type="password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
@@ -158,9 +208,20 @@ const AdminLogin = () => {
                     className="w-full pl-11 pr-4 py-3.5 bg-background/50 border-2 border-transparent focus:border-primary/50 focus:bg-background rounded-xl font-medium text-sm transition-all outline-none hover:bg-background/80 shadow-sm"
                   />
                 </div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={sendingReset}
+                    className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors disabled:opacity-60 inline-flex items-center gap-1.5"
+                  >
+                    {sendingReset && <Loader2 className="w-3 h-3 animate-spin" />}
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   type="submit"
@@ -178,13 +239,13 @@ const AdminLogin = () => {
                 </motion.button>
               </div>
             </form>
-            
+
             <div className="mt-8 text-center flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground bg-primary/5 py-2 px-4 rounded-lg border border-primary/10">
               <Lock className="w-3.5 h-3.5 text-primary" />
               Transmisión encriptada de extremo a extremo
             </div>
           </div>
-          
+
           <div className="mt-8 text-center lg:hidden">
             <p className="text-xs text-muted-foreground font-medium">© {currentYear} Plataforma Segura</p>
           </div>

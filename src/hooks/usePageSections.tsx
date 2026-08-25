@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 export type PageSection = {
   id: string;
@@ -47,11 +48,11 @@ export const useUpdatePageSection = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, metadata, ...updates }: Partial<PageSection> & { id: string }) => {
-      const payload: Record<string, unknown> = { ...updates };
-      if (metadata !== undefined) payload.metadata = metadata as unknown;
+      const payload: Database['public']['Tables']['page_sections']['Update'] = { ...updates };
+      if (metadata !== undefined) payload.metadata = metadata as Database['public']['Tables']['page_sections']['Update']['metadata'];
       const { error } = await supabase
         .from('page_sections')
-        .update(payload as any)
+        .update(payload)
         .eq('id', id);
       if (error) throw error;
     },

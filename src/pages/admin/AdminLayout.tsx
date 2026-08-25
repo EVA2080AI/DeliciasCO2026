@@ -1,40 +1,36 @@
 import { Outlet, Link, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import logoImg from '@/assets/images/logo.webp';
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PageFallback from '@/components/PageFallback';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/integrations/supabase/client';
-import { LayoutDashboard, Package, FileText, ShoppingBag, LogOut, Globe, BookOpen, Menu, X, ExternalLink, Settings, ChevronDown, UserPlus, Image as ImageIcon, Shield } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  LayoutDashboard, Package, FileText, ShoppingBag, LogOut, Globe, BookOpen, Menu, X, ExternalLink,
+  Settings, ChevronDown, UserPlus, Image as ImageIcon, Shield, Bell, type LucideIcon,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
 
-const mainNavItems = [
+type NavItemDef = { to: string; icon: LucideIcon; label: string; exact?: boolean; badgeKey?: 'orders' | 'quotations' };
+
+const mainNavItems: NavItemDef[] = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/admin/products', icon: Package, label: 'Productos' },
-  { to: '/admin/orders', icon: ShoppingBag, label: 'Pedidos' },
-  { to: '/admin/quotations', icon: FileText, label: 'Cotizaciones' },
+  { to: '/admin/orders', icon: ShoppingBag, label: 'Pedidos', badgeKey: 'orders' },
+  { to: '/admin/quotations', icon: FileText, label: 'Cotizaciones', badgeKey: 'quotations' },
   { to: '/admin/media', icon: ImageIcon, label: 'Librería' },
 ];
 
-const bottomNavItems = [
+const bottomNavItems: NavItemDef[] = [
   { to: '/admin/users', icon: UserPlus, label: 'Usuarios' },
   { to: '/admin/profile', icon: Shield, label: 'Seguridad' },
   { to: '/admin/blog', icon: BookOpen, label: 'Blog' },
   { to: '/admin/settings', icon: Settings, label: 'Configuración' },
 ];
-
-const pageLabels: Record<string, string> = {
-  index: 'Inicio',
-  nosotros: 'Nosotros',
-  menu: 'Menú',
-  sedes: 'Sedes',
-  institucional: 'Empresas',
-  blog: 'Blog',
-  faq: 'FAQ',
-};
 
 const slugToSectionSlug: Record<string, string> = {
   inicio: 'index',
@@ -47,79 +43,69 @@ const slugToSectionSlug: Record<string, string> = {
   'preguntas-frecuentes': 'faq',
 };
 
-const AdminLayout = () => {
-  const { user, isAdmin, loading, signOut } = useAuth();
-  const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [pagesOpen, setPagesOpen] = useState(false);
+type PendingCounts = { orders: number; quotations: number };
+type PageRow = { id: string; slug: string; title: string; active: boolean };
+type NotifPermission = NotificationPermission | 'unsupported';
 
-  const brandName = settings.brand_name || 'DC Delicias Colombianas - Arbey Cabrera';
-  const brandSlogan = settings.brand_slogan || 'Originales desde 1985';
-  const logoUrl = settingsLoading ? null : (settings.brand_logo || logoImg);
+const getNotifPermission = (): NotifPermission =>
+  typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported';
 
-  // Fetch pages for the dropdown
-  const { data: pages } = useAdminQuery({
-    queryKey: ['admin-pages-nav'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('pages').select('*').order('sort_order');
-      if (error) throw error;
-      return data;
-    },
-  });
+// ─── Sidebar pieces (fuera del layout: así no se remontan en cada render) ─────
 
-  // Auto-expand pages dropdown when on pages/sections routes
-  const isOnPagesRoute = location.pathname.startsWith('/admin/pages') || location.pathname.startsWith('/admin/sections');
-  useEffect(() => {
-    if (isOnPagesRoute) setPagesOpen(true);
-  }, [isOnPagesRoute]);
-
-  useEffect(() => { setSidebarOpen(false); }, [location.pathname, searchParams]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user || !isAdmin) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  const currentPageFilter = searchParams.get('page');
-  const isActiveNav = (item: { to: string; exact?: boolean }) =>
-    item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
-
-  const isActivePageSub = (slug: string) => {
-    return location.pathname === '/admin/sections' && currentPageFilter === slug;
-  };
-
-  const NavItem = ({ item }: { item: { to: string; icon: any; label: string; exact?: boolean } }) => {
-    const active = isActiveNav(item);
-    return (
-      <Link
-        to={item.to}
-        className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-          active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+const NavItem = ({ item, active, layoutId, badge }: { item: NavItemDef; active: boolean; layoutId: string; badge?: number }) => (
+  <Link
+    to={item.to}
+    className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+      active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+    }`}
+  >
+    {active && (
+      <motion.div
+        layoutId={layoutId}
+        className="absolute inset-0 bg-gradient-gold rounded-xl"
+        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+      />
+    )}
+    <item.icon className="w-4 h-4 relative z-10" />
+    <span className="relative z-10 flex-1">{item.label}</span>
+    {!!badge && badge > 0 && (
+      <span
+        className={`relative z-10 min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+          active ? 'bg-white/25 text-primary-foreground' : 'bg-primary text-primary-foreground'
         }`}
+        title={`${badge} pendientes`}
       >
-        {active && (
-          <motion.div
-            layoutId="adminNav"
-            className="absolute inset-0 bg-gradient-gold rounded-xl"
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-          />
-        )}
-        <item.icon className="w-4 h-4 relative z-10" />
-        <span className="relative z-10">{item.label}</span>
-      </Link>
-    );
-  };
+        {badge > 99 ? '99+' : badge}
+      </span>
+    )}
+  </Link>
+);
 
-  const SidebarContent = () => (
+type SidebarProps = {
+  layoutId: string;
+  logoUrl: string | null;
+  brandName: string;
+  brandSlogan: string;
+  pages: PageRow[] | undefined;
+  pagesOpen: boolean;
+  setPagesOpen: Dispatch<SetStateAction<boolean>>;
+  isOnPagesRoute: boolean;
+  pathname: string;
+  currentPageFilter: string | null;
+  pending: PendingCounts | undefined;
+  notifPermission: NotifPermission;
+  onEnableNotifications: () => void;
+  onSignOut: () => void;
+};
+
+const SidebarContent = ({
+  layoutId, logoUrl, brandName, brandSlogan, pages, pagesOpen, setPagesOpen, isOnPagesRoute, pathname,
+  currentPageFilter, pending, notifPermission, onEnableNotifications, onSignOut,
+}: SidebarProps) => {
+  const isActiveNav = (item: NavItemDef) => (item.exact ? pathname === item.to : pathname.startsWith(item.to));
+  const badgeFor = (item: NavItemDef) => (item.badgeKey && pending ? pending[item.badgeKey] : undefined);
+
+  return (
     <>
       <div className="p-5 border-b">
         <div className="flex items-center gap-2.5">
@@ -140,13 +126,14 @@ const AdminLayout = () => {
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {mainNavItems.map((item) => (
-          <NavItem key={item.to} item={item} />
+          <NavItem key={item.to} item={item} active={isActiveNav(item)} layoutId={layoutId} badge={badgeFor(item)} />
         ))}
 
         {/* Páginas dropdown */}
         <div>
           <button
-            onClick={() => setPagesOpen(!pagesOpen)}
+            onClick={() => setPagesOpen((v) => !v)}
+            aria-expanded={pagesOpen}
             className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
               isOnPagesRoute && !pagesOpen
                 ? 'text-primary-foreground'
@@ -155,7 +142,7 @@ const AdminLayout = () => {
           >
             {isOnPagesRoute && !pagesOpen && (
               <motion.div
-                layoutId="adminNav"
+                layoutId={layoutId}
                 className="absolute inset-0 bg-gradient-gold rounded-xl"
                 transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               />
@@ -178,7 +165,7 @@ const AdminLayout = () => {
                   <Link
                     to="/admin/pages"
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                      location.pathname === '/admin/pages'
+                      pathname === '/admin/pages'
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                     }`}
@@ -187,7 +174,7 @@ const AdminLayout = () => {
                   </Link>
                   {pages?.map((page) => {
                     const sectionSlug = slugToSectionSlug[page.slug] || page.slug;
-                    const active = isActivePageSub(sectionSlug);
+                    const active = pathname === '/admin/sections' && currentPageFilter === sectionSlug;
                     return (
                       <Link
                         key={page.id}
@@ -210,11 +197,23 @@ const AdminLayout = () => {
         </div>
 
         {bottomNavItems.map((item) => (
-          <NavItem key={item.to} item={item} />
+          <NavItem key={item.to} item={item} active={isActiveNav(item)} layoutId={layoutId} badge={badgeFor(item)} />
         ))}
       </nav>
 
       <div className="p-3 border-t space-y-1">
+        {notifPermission === 'default' && (
+          <button
+            onClick={onEnableNotifications}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Recibe un aviso del navegador cuando entre una cotización o pedido nuevo"
+          >
+            <Bell className="w-4 h-4" /> Activar avisos
+          </button>
+        )}
+        {notifPermission === 'denied' && (
+          <p className="px-4 py-1 text-[10px] text-muted-foreground">Avisos bloqueados en el navegador.</p>
+        )}
         <Link
           to="/"
           target="_blank"
@@ -223,7 +222,7 @@ const AdminLayout = () => {
           <ExternalLink className="w-4 h-4" /> Ver sitio web
         </Link>
         <button
-          onClick={signOut}
+          onClick={onSignOut}
           className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-4 h-4" /> Cerrar Sesión
@@ -231,12 +230,128 @@ const AdminLayout = () => {
       </div>
     </>
   );
+};
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
+const AdminLayout = () => {
+  usePageTitle('Panel');
+  const { user, isAdmin, loading, signOut } = useAuth();
+  const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pagesOpen, setPagesOpen] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotifPermission>(getNotifPermission);
+  const prevPendingRef = useRef<number | null>(null);
+
+  const brandName = settings.brand_name || 'DC Delicias Colombianas - Arbey Cabrera';
+  const brandSlogan = settings.brand_slogan || 'Originales desde 1985';
+  const logoUrl = settingsLoading ? null : (settings.brand_logo || logoImg);
+  const authed = !!user && isAdmin;
+
+  // Fetch pages for the dropdown
+  const { data: pages } = useAdminQuery({
+    queryKey: ['admin-pages-nav'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pages').select('id, slug, title, active').order('sort_order');
+      if (error) throw error;
+      return (data ?? []) as PageRow[];
+    },
+    enabled: authed,
+  });
+
+  // Leads pendientes (badge en "Pedidos" / "Cotizaciones"), refrescado cada minuto.
+  const { data: pending } = useAdminQuery({
+    queryKey: ['admin-pending-counts'],
+    queryFn: async (): Promise<PendingCounts> => {
+      const [q, o] = await Promise.all([
+        supabase.from('quotations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      if (q.error) throw q.error;
+      if (o.error) throw o.error;
+      return { quotations: q.count ?? 0, orders: o.count ?? 0 };
+    },
+    enabled: authed,
+    refetchInterval: 60_000,
+  });
+
+  // Aviso del navegador cuando el total de pendientes sube con la pestaña abierta.
+  useEffect(() => {
+    if (!pending) return;
+    const total = pending.quotations + pending.orders;
+    const prev = prevPendingRef.current;
+    prevPendingRef.current = total;
+    if (prev === null || total <= prev) return;
+    if (getNotifPermission() !== 'granted') return;
+    try {
+      new Notification('Nuevo lead en Delicias Colombianas', {
+        body: `${pending.quotations} cotizaciones y ${pending.orders} pedidos pendientes`,
+        tag: 'dc-admin-leads',
+        icon: '/pwa-192.png',
+      });
+    } catch {
+      /* algunos navegadores solo permiten notificaciones desde un service worker */
+    }
+  }, [pending]);
+
+  const enableNotifications = () => {
+    if (getNotifPermission() === 'unsupported') return;
+    Notification.requestPermission()
+      .then((p) => {
+        setNotifPermission(p);
+        if (p === 'granted') toast.success('Avisos activados: te avisaremos cuando entre una cotización o pedido.');
+      })
+      .catch(() => setNotifPermission(getNotifPermission()));
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) toast.error(`No se pudo cerrar la sesión: ${error.message}`);
+  };
+
+  // Auto-expand pages dropdown when on pages/sections routes
+  const isOnPagesRoute = location.pathname.startsWith('/admin/pages') || location.pathname.startsWith('/admin/sections');
+  useEffect(() => {
+    if (isOnPagesRoute) setPagesOpen(true);
+  }, [isOnPagesRoute]);
+
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname, searchParams]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authed) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  const sidebarProps = {
+    logoUrl,
+    brandName,
+    brandSlogan,
+    pages,
+    pagesOpen,
+    setPagesOpen,
+    isOnPagesRoute,
+    pathname: location.pathname,
+    currentPageFilter: searchParams.get('page'),
+    pending,
+    notifPermission,
+    onEnableNotifications: enableNotifications,
+    onSignOut: handleSignOut,
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-card border-r flex-col shrink-0">
-        <SidebarContent />
+        <SidebarContent {...sidebarProps} layoutId="adminNav" />
       </aside>
 
       {/* Mobile header */}
@@ -248,7 +363,12 @@ const AdminLayout = () => {
             <span className="block text-[8px] text-muted-foreground font-semibold tracking-wider">{brandSlogan}</span>
           </div>
         </div>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-secondary">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-expanded={sidebarOpen}
+          aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+          className="p-2 rounded-lg hover:bg-secondary"
+        >
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
@@ -271,7 +391,7 @@ const AdminLayout = () => {
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="md:hidden fixed left-0 top-0 bottom-0 w-64 bg-card border-r z-50 flex flex-col shadow-elevated"
             >
-              <SidebarContent />
+              <SidebarContent {...sidebarProps} layoutId="adminNavMobile" />
             </motion.aside>
           </>
         )}

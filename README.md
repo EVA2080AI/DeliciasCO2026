@@ -1,73 +1,72 @@
-# Welcome to your Lovable project
+# DC Delicias Colombianas — sitio web + panel
 
-## Project info
+Sitio público (menú, pedidos por WhatsApp, cotizaciones empresariales, blog) y panel de administración (CMS) para **elmejorpasteldepollodc.com**.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- **Stack:** Vite 5 · React 18 · TypeScript · Tailwind · Supabase (Postgres + Auth + Storage) · TanStack Query · Zustand · framer-motion · PWA.
+- **Deploy:** Vercel (proyecto `delicias-co-2026`, integración con GitHub → cada push a `main` despliega).
+- **Backend:** Supabase proyecto `sqshrqbopwmxkfkvmmtd` (plan Free: sin transformaciones de imagen, por eso todo se optimiza en el navegador al subir).
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Desarrollo
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+cp .env.example .env        # y pon las claves públicas (VITE_SUPABASE_URL / ANON_KEY)
+npm run dev                 # http://localhost:8080
+npm run typecheck           # tsc
+npm run lint                # eslint
+npm test                    # vitest
+npm run build && npm run preview
 ```
 
-**Edit a file directly in GitHub**
+`.env` no se versiona. Solo contiene claves **públicas** (anon key); nunca pongas la service-role key ni contraseñas en el repo.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Base de datos
 
-**Use GitHub Codespaces**
+Las migraciones viven en `supabase/migrations/`. Para aplicarlas:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+supabase login
+supabase link --project-ref sqshrqbopwmxkfkvmmtd
+supabase db push
+```
 
-## What technologies are used for this project?
+o pega el contenido del archivo nuevo en el **SQL Editor** del dashboard (las migraciones son idempotentes).
 
-This project is built with:
+Regenerar tipos tras cambiar el esquema: `supabase gen types typescript --linked > src/integrations/supabase/types.ts`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Imágenes
 
-## How can I deploy this project?
+- Toda subida desde el panel pasa por `src/lib/storage.ts` → `uploadOptimizedImage()`: convierte a **WebP**, redimensiona según el uso (`IMAGE_PRESETS` en `src/lib/imageCompression.ts`), genera una miniatura `-thumb.webp` y sube a una ruta **única** con caché de un año. Nunca se reescribe una ruta existente (el CDN la cachea).
+- Las listas (carrito, cotización, admin) usan `<ThumbImage>`; las imágenes grandes `<SafeImage>` (`src/components/ThumbImage.tsx`), con fallback a `/placeholder.svg`.
+- **Admin → Medios → "Optimizar imágenes"** re-procesa las imágenes ya existentes en el bucket (analiza → ejecuta → verifica) y actualiza las referencias en la base de datos. Ejecutarlo en Chrome de escritorio con un usuario que tenga rol `admin` en `user_roles`. Recomendado: primera pasada sin borrar, revisar el sitio, segunda pasada con "Eliminar huérfanas".
+- Assets locales (`src/assets/images/*.webp`, iconos PWA, `og-image.jpg`) se generan con `node scripts/optimize-static.mjs` (usa `sharp`); solo hace falta volver a correrlo si cambia el logo.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Notificaciones de pedidos / cotizaciones
 
-## Can I connect a custom domain to my Lovable project?
+`supabase/functions/notify-new-lead` envía un correo (Resend) cada vez que se inserta una fila en `quotations` u `orders`.
 
-Yes, you can!
+1. `supabase secrets set RESEND_API_KEY=... NOTIFY_FROM="Delicias <pedidos@tudominio.com>"`
+2. `supabase functions deploy notify-new-lead --no-verify-jwt`
+3. Dashboard → Database → Webhooks: crear dos webhooks (INSERT en `quotations` e INSERT en `orders`) apuntando a la URL de la función. Opcional: header `x-webhook-secret` y secreto `WEBHOOK_SECRET`.
+4. Admin → Configuración → **Correo para avisos** (`notification_email`).
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Mientras tanto, el panel muestra un contador de cotizaciones/pedidos pendientes que se refresca cada minuto y puede activar avisos del navegador.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Estructura
+
+```
+src/
+  pages/            páginas públicas y admin (cargadas bajo demanda)
+  components/       Layout persistente, Header/Footer, ThumbImage, admin/*
+  hooks/            useSiteSettings, usePageSections, useSedes, useAuth, useAdminQuery
+  lib/              whatsapp, storage, imageCompression, mediaOptimizer, cmsSync, dates
+  store/cartStore   carrito (persistido, versionado)
+supabase/           migraciones y Edge Functions
+scripts/            optimize-static.mjs
+```
+
+## Convenciones
+
+- Enlaces de WhatsApp: siempre `buildWaUrl()` (`src/lib/whatsapp.ts`); para abrir WhatsApp después de guardar en la base de datos usar `openWhatsAppAfter()` (evita el bloqueo de popups en Safari/iOS).
+- Consultas del panel: `useAdminQuery` (siempre frescas). Mutaciones: `invalidateCms(qc, CMS_KEYS.x)` para refrescar también la pestaña pública abierta.
+- Fechas de entrega: `localISODate()` (hora local, no UTC).

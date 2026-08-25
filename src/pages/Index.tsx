@@ -13,10 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem, CountUp } from '@/components/ScrollAnimations';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { usePageSectionsMap } from '@/hooks/usePageSections';
+import { usePageSectionsMap, type PageSection } from '@/hooks/usePageSections';
 import { useSedes } from '@/hooks/useSedes';
+import { CtaLink } from '@/components/CtaLink';
+import { normalizeHeroSlides, normalizeStats, parseMetadata, pickSlide, readCta, type HeroSlide } from '@/lib/cmsGuards';
 
-const defaultHeroSlides = [
+const defaultHeroSlides: HeroSlide[] = [
   {
     tag: 'Tradición desde 1985',
     title: 'El mejor pastel de pollo de Colombia',
@@ -57,39 +59,38 @@ const Index = () => {
   const { sections, isLoading: sectionsLoading } = usePageSectionsMap('index');
   const { tiendas } = useSedes();
 
-  // Hero slides from DB or defaults
-  const heroSlides = useMemo(() => {
-    const heroSection = sections.hero;
-    if (heroSection?.metadata) {
-      try {
-        const meta = typeof heroSection.metadata === 'string' ? JSON.parse(heroSection.metadata) : heroSection.metadata;
-        if (meta.slides && Array.isArray(meta.slides) && meta.slides.length > 0) return meta.slides;
-      } catch { /* fall through */ }
-    }
-    return defaultHeroSlides;
-  }, [sections.hero]);
+  // Hero slides from DB or defaults (solo objetos válidos; si el CMS no trae ninguno, defaults)
+  const heroSlides = useMemo(
+    () => normalizeHeroSlides(sections.hero?.metadata) ?? defaultHeroSlides,
+    [sections.hero],
+  );
 
-  // Stats from DB or defaults
-  const stats = useMemo(() => {
-    const statsSection = sections.stats;
-    if (statsSection?.metadata) {
-      try {
-        const meta = typeof statsSection.metadata === 'string' ? JSON.parse(statsSection.metadata) : statsSection.metadata;
-        if (meta.items && Array.isArray(meta.items)) return meta.items;
-      } catch { /* fall through */ }
-    }
-    return defaultStats;
-  }, [sections.stats]);
+  // Stats from DB or defaults (value numérico, sin items sin label)
+  const stats = useMemo(
+    () => normalizeStats(parseMetadata(sections.stats?.metadata)?.items, defaultStats),
+    [sections.stats],
+  );
 
-  const next = useCallback(() => setSlide((s) => (s + 1) % heroSlides.length), [heroSlides.length]);
-  const prev = useCallback(() => setSlide((s) => (s - 1 + heroSlides.length) % heroSlides.length), [heroSlides.length]);
+  const slideCount = heroSlides.length;
+  const next = useCallback(() => setSlide((s) => (s + 1) % slideCount), [slideCount]);
+  const prev = useCallback(() => setSlide((s) => (s - 1 + slideCount) % slideCount), [slideCount]);
 
   useEffect(() => {
     const timer = setInterval(next, 6000);
     return () => clearInterval(timer);
   }, [next]);
 
-  const current = heroSlides[slide];
+  // Si el CMS cambia la cantidad de slides (llegan después del timer), volver al primero.
+  useEffect(() => {
+    setSlide(0);
+  }, [slideCount]);
+
+  // Índice siempre dentro de rango aunque `slide` haya quedado viejo por un instante.
+  const slideIdx = Math.min(slide, slideCount - 1);
+  const current = pickSlide(heroSlides, slide, defaultHeroSlides[0]);
+  const cta = readCta(current.cta, 'Pedir ahora');
+  const cta2 = readCta(current.cta2, 'Ver más');
+  const heroFallbackImg = heroImages[slideIdx % heroImages.length];
   const s = sections; // shorthand
 
   // Helper: check if section is active (default true if not in DB)
@@ -121,25 +122,31 @@ const Index = () => {
             <div className="flex flex-col justify-center px-8 py-16 md:px-16 lg:px-24 order-2 md:order-1 relative z-10">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={slide}
+                  key={slideIdx}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
-                    {current.tag}
-                  </p>
+                  {current.tag && (
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-4">
+                      {current.tag}
+                    </p>
+                  )}
                   <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-foreground leading-[1.08] mb-6">
-                    {current.title}
+                    {current.title || defaultHeroSlides[0].title}
                   </h1>
-                  <p className="text-muted-foreground text-base md:text-lg max-w-md leading-relaxed mb-8">
-                    {current.desc}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <Link to={current.cta.to} className="btn-primary">{current.cta.label}</Link>
-                    <Link to={current.cta2.to} className="btn-outline">{current.cta2.label}</Link>
-                  </div>
+                  {current.desc && (
+                    <p className="text-muted-foreground text-base md:text-lg max-w-md leading-relaxed mb-8">
+                      {current.desc}
+                    </p>
+                  )}
+                  {(cta || cta2) && (
+                    <div className="flex flex-wrap gap-3">
+                      {cta && <CtaLink to={cta.to} className="btn-primary">{cta.label}</CtaLink>}
+                      {cta2 && <CtaLink to={cta2.to} className="btn-outline">{cta2.label}</CtaLink>}
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
               <div className="flex items-center gap-4 mt-10">
@@ -147,11 +154,12 @@ const Index = () => {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-2">
-                  {heroSlides.map((_: unknown, i: number) => (
+                  {heroSlides.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setSlide(i)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${i === slide ? 'w-8 bg-primary' : 'w-3 bg-foreground/20'}`}
+                      aria-label={`Ir a la diapositiva ${i + 1}`}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${i === slideIdx ? 'w-8 bg-primary' : 'w-3 bg-foreground/20'}`}
                     />
                   ))}
                 </div>
@@ -163,15 +171,14 @@ const Index = () => {
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2 overflow-hidden">
               <AnimatePresence mode="wait">
                 <motion.img
-                  key={slide}
-                  src={current.img || heroImages[slide % heroImages.length]}
-                  alt={current.title}
-                  loading={slide === 0 ? 'eager' : 'lazy'}
+                  key={slideIdx}
+                  src={current.img || heroFallbackImg}
+                  alt={current.title || ''}
+                  loading={slideIdx === 0 ? 'eager' : 'lazy'}
                   decoding="async"
-                  {...(slide === 0 ? ({ fetchpriority: 'high' } as Record<string, string>) : {})}
+                  {...(slideIdx === 0 ? ({ fetchpriority: 'high' } as Record<string, string>) : {})}
                   onError={(e) => {
-                    const fallback = heroImages[slide % heroImages.length];
-                    if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                    if (e.currentTarget.src !== heroFallbackImg) e.currentTarget.src = heroFallbackImg;
                   }}
                   initial={{ opacity: 0, scale: 1.05 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -202,9 +209,9 @@ const Index = () => {
                 {s.productos?.content || 'Pasteles, empanadas, almojábanas, pan de bono, café premium colombiano y mucho más.'}
               </p>
               <div>
-                <Link to={s.productos?.cta_link || '/menu'} className="btn-outline-light">
+                <CtaLink to={s.productos?.cta_link} fallback="/menu" className="btn-outline-light">
                   {s.productos?.cta_text || 'Ver menú completo'}
-                </Link>
+                </CtaLink>
               </div>
             </FadeInWhenVisible>
           </div>
@@ -223,9 +230,9 @@ const Index = () => {
                 {s.cafeteria?.content || 'Granos seleccionados del Huila y Nariño.'}
               </p>
               <div>
-                <Link to={s.cafeteria?.cta_link || '/menu?cat=cafeteria'} className="btn-primary">
+                <CtaLink to={s.cafeteria?.cta_link} fallback="/menu?cat=cafeteria" className="btn-primary">
                   {s.cafeteria?.cta_text || 'Descubrir cafetería'}
-                </Link>
+                </CtaLink>
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
@@ -254,9 +261,9 @@ const Index = () => {
                 {s.delicias?.content || 'Las delicias colombianas que nos definen.'}
               </p>
               <div>
-                <Link to={s.delicias?.cta_link || '/menu?cat=delicias'} className="btn-outline-light">
+                <CtaLink to={s.delicias?.cta_link} fallback="/menu?cat=delicias" className="btn-outline-light">
                   {s.delicias?.cta_text || 'Explorar delicias'}
-                </Link>
+                </CtaLink>
               </div>
             </FadeInWhenVisible>
           </div>
@@ -300,9 +307,9 @@ const Index = () => {
               </StaggerContainer>
             )}
             <FadeInWhenVisible className="text-center mt-12">
-              <Link to={s.featured?.cta_link || '/menu'} className="btn-outline gap-2">
+              <CtaLink to={s.featured?.cta_link} fallback="/menu" className="btn-outline gap-2">
                 {s.featured?.cta_text || 'Ver menú completo'} <ArrowRight className="w-4 h-4" />
-              </Link>
+              </CtaLink>
             </FadeInWhenVisible>
           </div>
         </section>
@@ -320,9 +327,9 @@ const Index = () => {
                 {s.empresas?.content || 'Desayunos corporativos, eventos y catering.'}
               </p>
               <div>
-                <Link to={s.empresas?.cta_link || '/institucional'} className="btn-outline-light">
+                <CtaLink to={s.empresas?.cta_link} fallback="/institucional" className="btn-outline-light">
                   {s.empresas?.cta_text || 'Cotizar ahora'}
-                </Link>
+                </CtaLink>
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 overflow-hidden order-1 md:order-2">
@@ -339,8 +346,8 @@ const Index = () => {
         <section className="w-full bg-section-cream py-16">
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              {stats.map((stat: { value: number; suffix: string; label: string }) => (
-                <div key={stat.label}>
+              {stats.map((stat, i) => (
+                <div key={`${stat.label}-${i}`}>
                   <p className="font-display text-3xl md:text-4xl font-bold text-primary">
                     <CountUp end={stat.value} suffix={stat.suffix} />
                   </p>
@@ -376,9 +383,9 @@ const Index = () => {
                 ))}
               </ul>
               <div className="flex flex-wrap gap-3">
-                <Link to={s.visitanos?.cta_link || '/sedes'} className="btn-primary">
+                <CtaLink to={s.visitanos?.cta_link} fallback="/sedes" className="btn-primary">
                   {s.visitanos?.cta_text || 'Ver ubicaciones'}
-                </Link>
+                </CtaLink>
                 <Link to="/preguntas-frecuentes" className="btn-outline">Preguntas frecuentes</Link>
               </div>
             </FadeInWhenVisible>
@@ -398,7 +405,7 @@ const fallbackPosts = [
   { title: 'Receta del pastel de pollo colombiano paso a paso', category: 'Recetas', slug: 'receta-pastel-pollo-colombiano' },
 ];
 
-const BlogSection = ({ sections: s }: { sections: Record<string, any> }) => {
+const BlogSection = ({ sections: s }: { sections: Record<string, PageSection> }) => {
   const { data: dbPosts } = useQuery({
     queryKey: ['blog-posts-home'],
     queryFn: async () => {

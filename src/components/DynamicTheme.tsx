@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
+import { SECTION_COLOR_VARS } from '@/lib/cmsGuards';
 
 /**
  * Convierte un color hex (#rrggbb) a componentes HSL listos para CSS vars.
@@ -60,6 +61,19 @@ const DynamicTheme = () => {
           applyColor(['--terracotta', '--section-terracotta'], settings.brand_color_primary);
         }
       }
+
+      // Colores de fondo de las secciones (Admin > Configuración > Colores de Secciones).
+      // Solo en modo claro: en oscuro mandan los valores de `.dark` en index.css, así que se
+      // retira cualquier valor inline para no pisarlos. Valores vacíos o inexistentes: se omiten.
+      Object.entries(SECTION_COLOR_VARS).forEach(([key, cssVar]) => {
+        if (isDark) {
+          root.style.removeProperty(cssVar);
+          return;
+        }
+        const raw = (settings[key] || '').trim();
+        if (!raw) return;
+        applyColor([cssVar], raw);
+      });
 
       const display = settings.brand_font_display || 'Plus Jakarta Sans';
       const body = settings.brand_font_body || 'Plus Jakarta Sans';

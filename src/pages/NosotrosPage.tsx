@@ -1,21 +1,56 @@
 import { Link } from 'react-router-dom';
 import { SafeImage } from '@/components/ThumbImage';
+import { CtaLink } from '@/components/CtaLink';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { ArrowRight, HandHeart, Leaf, Heart, Briefcase, GraduationCap, ChefHat } from 'lucide-react';
+import {
+  ArrowRight, HandHeart, Leaf, Heart, Briefcase, GraduationCap, ChefHat,
+  Award, Star, Users, Sparkles, Wheat, Coffee, Home, ShieldCheck, Clock, Flame, Utensils, Gem, Smile,
+  type LucideIcon,
+} from 'lucide-react';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem, CountUp } from '@/components/ScrollAnimations';
 import heroImg from '@/assets/images/hero-pastel.webp';
 import pastelImg from '@/assets/images/pastel-carne.webp';
 import cafeImg from '@/assets/images/cafe-premium.webp';
 import { usePageSectionsMap } from '@/hooks/usePageSections';
+import { normalizeStats, parseMetadata } from '@/lib/cmsGuards';
 import { useMemo } from 'react';
 
-const defaultValues = [
-  { icon: HandHeart, title: 'Artesanal 100%', desc: 'Cada producto hecho a mano con recetas familiares transmitidas por generaciones. Nunca industrializado.' },
-  { icon: Leaf, title: 'Ingredientes frescos', desc: 'Sin conservantes ni procesados. Todo se prepara diariamente con ingredientes colombianos de primera calidad.' },
-  { icon: Heart, title: 'Raíces campesinas', desc: 'Nuestras recetas nacieron en el Caquetá y se perfeccionaron en Bogotá. Cada bocado lleva la esencia de la tradición colombiana.' },
+type ValueItem = { icon?: unknown; title?: string; desc?: string };
+type Milestone = { title?: string; desc?: string };
+
+/**
+ * Iconos permitidos desde el CMS (`items[].icon` como string, p. ej. "Leaf" o "hand-heart").
+ * Nunca se renderiza un string como componente: si no está en la lista, se usa el rotativo.
+ */
+const ICON_WHITELIST: Record<string, LucideIcon> = {
+  HandHeart, Leaf, Heart, Briefcase, GraduationCap, ChefHat,
+  Award, Star, Users, Sparkles, Wheat, Coffee, Home, ShieldCheck, Clock, Flame, Utensils, Gem, Smile,
+};
+const iconLookup: Record<string, LucideIcon> = Object.fromEntries(
+  Object.entries(ICON_WHITELIST).map(([name, Icon]) => [name.toLowerCase(), Icon]),
+);
+const resolveIcon = (raw: unknown, fallback: LucideIcon): LucideIcon => {
+  if (typeof raw !== 'string') return fallback;
+  return iconLookup[raw.replace(/[^a-z]/gi, '').toLowerCase()] ?? fallback;
+};
+
+const defaultValues: ValueItem[] = [
+  { icon: 'HandHeart', title: 'Artesanal 100%', desc: 'Cada producto hecho a mano con recetas familiares transmitidas por generaciones. Nunca industrializado.' },
+  { icon: 'Leaf', title: 'Ingredientes frescos', desc: 'Sin conservantes ni procesados. Todo se prepara diariamente con ingredientes colombianos de primera calidad.' },
+  { icon: 'Heart', title: 'Raíces campesinas', desc: 'Nuestras recetas nacieron en el Caquetá y se perfeccionaron en Bogotá. Cada bocado lleva la esencia de la tradición colombiana.' },
+];
+const valueIcons: LucideIcon[] = [HandHeart, Leaf, Heart];
+
+const milestoneIcons: LucideIcon[] = [Briefcase, Heart, GraduationCap, ChefHat];
+
+const defaultStats = [
+  { value: 40, suffix: '+', label: 'Años de tradición' },
+  { value: 60, suffix: '+', label: 'Productos artesanales' },
+  { value: 2, suffix: '', label: 'Sedes en Bogotá' },
+  { value: 10000, suffix: '+', label: 'Clientes felices' },
 ];
 
-const milestoneIcons = [Briefcase, Heart, GraduationCap, ChefHat];
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object';
 
 const NosotrosPage = () => {
   const { sections: s } = usePageSectionsMap('nosotros');
@@ -23,21 +58,21 @@ const NosotrosPage = () => {
 
   const isActive = (key: string) => s[key]?.active !== false;
 
-  const valores = useMemo(() => {
-    try {
-      const meta = s.valores?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
-    } catch { /* fall through */ }
+  const valores = useMemo<ValueItem[]>(() => {
+    const items = parseMetadata(s.valores?.metadata)?.items;
+    if (Array.isArray(items)) {
+      const list = items.filter(isObj) as ValueItem[];
+      if (list.length > 0) return list;
+    }
     return defaultValues;
   }, [s.valores]);
 
-  const milestones = useMemo(() => {
-    try {
-      const meta = s.disciplina?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      if (parsed?.milestones && Array.isArray(parsed.milestones)) return parsed.milestones;
-    } catch { /* fall through */ }
+  const milestones = useMemo<Milestone[]>(() => {
+    const items = parseMetadata(s.disciplina?.metadata)?.milestones;
+    if (Array.isArray(items)) {
+      const list = items.filter(isObj) as Milestone[];
+      if (list.length > 0) return list;
+    }
     return [
       { title: 'Primeros Pasos', desc: 'Su primer empleo remunerado fue como mensajero en una zapatería.' },
       { title: 'Esfuerzo Físico', desc: 'Trabajó como ayudante de obra cargando ladrillos y realizando mezclas.' },
@@ -46,35 +81,13 @@ const NosotrosPage = () => {
     ];
   }, [s.disciplina]);
 
-  const paragraph2Origen = useMemo(() => {
-    try {
-      const meta = s.origen?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      return parsed?.paragraph2 || '';
-    } catch { return ''; }
-  }, [s.origen]);
+  const paragraph2Origen = useMemo(() => String(parseMetadata(s.origen?.metadata)?.paragraph2 || ''), [s.origen]);
+  const paragraph2Promesa = useMemo(() => String(parseMetadata(s.promesa?.metadata)?.paragraph2 || ''), [s.promesa]);
 
-  const paragraph2Promesa = useMemo(() => {
-    try {
-      const meta = s.promesa?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      return parsed?.paragraph2 || '';
-    } catch { return ''; }
-  }, [s.promesa]);
-
-  const statsItems = useMemo(() => {
-    try {
-      const meta = s.stats?.metadata;
-      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-      if (parsed?.items && Array.isArray(parsed.items)) return parsed.items;
-    } catch { /* fall through */ }
-    return [
-      { value: 40, suffix: '+', label: 'Años de tradición' },
-      { value: 60, suffix: '+', label: 'Productos artesanales' },
-      { value: 2, suffix: '', label: 'Sedes en Bogotá' },
-      { value: 10000, suffix: '+', label: 'Clientes felices' },
-    ];
-  }, [s.stats]);
+  const statsItems = useMemo(
+    () => normalizeStats(parseMetadata(s.stats?.metadata)?.items, defaultStats),
+    [s.stats],
+  );
 
   return (
     <>
@@ -93,9 +106,9 @@ const NosotrosPage = () => {
                 {s.hero?.content || 'Esta es la historia de Arbey Cabrera...'}
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link to={s.hero?.cta_link || '/menu'} className="btn-outline-light gap-2">
+                <CtaLink to={s.hero?.cta_link} fallback="/menu" className="btn-outline-light gap-2">
                   {s.hero?.cta_text || 'Conoce nuestro menú'} <ArrowRight className="w-4 h-4" />
-                </Link>
+                </CtaLink>
               </div>
             </FadeInWhenVisible>
             <div className="relative min-h-[350px] md:min-h-0 order-1 md:order-2">
@@ -147,10 +160,10 @@ const NosotrosPage = () => {
                 {s.disciplina?.content || 'El camino no fue fácil. Arbey Cabrera forjó su carácter desde muy joven trabajando incansablemente, demostrando que con tenacidad cualquier sueño es posible.'}
               </p>
               <div className="space-y-4 max-w-md">
-                {milestones.map((item: { title: string; desc: string }, idx: number) => {
+                {milestones.map((item, idx) => {
                   const Icon = milestoneIcons[idx % milestoneIcons.length];
                   return (
-                    <div key={item.title} className="flex gap-4 items-start">
+                    <div key={`${item.title ?? ''}-${idx}`} className="flex gap-4 items-start">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Icon className="w-5 h-5 text-primary" />
                       </div>
@@ -229,10 +242,10 @@ const NosotrosPage = () => {
               </div>
             </FadeInWhenVisible>
             <StaggerContainer className="grid sm:grid-cols-3 gap-8" staggerDelay={0.1}>
-              {valores.map((item: { icon?: React.ElementType; title: string; desc: string }, idx: number) => {
-                const Icon = item.icon || [HandHeart, Leaf, Heart][idx % 3];
+              {valores.map((item, idx) => {
+                const Icon = resolveIcon(item.icon, valueIcons[idx % valueIcons.length]);
                 return (
-                  <StaggerItem key={item.title}>
+                  <StaggerItem key={`${item.title ?? ''}-${idx}`}>
                     <div className="text-center p-8 rounded-2xl bg-background">
                       <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <Icon className="w-7 h-7 text-primary" />
@@ -253,8 +266,8 @@ const NosotrosPage = () => {
         <section className="w-full bg-section-terracotta py-20">
           <div className="max-w-[1440px] mx-auto px-6 lg:px-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              {statsItems.map((stat: { value: number; suffix: string; label: string }) => (
-                <div key={stat.label}>
+              {statsItems.map((stat, idx) => (
+                <div key={`${stat.label}-${idx}`}>
                   <p className="font-display text-3xl md:text-4xl font-bold text-primary-foreground">
                     <CountUp end={stat.value} suffix={stat.suffix} />
                   </p>
@@ -278,9 +291,9 @@ const NosotrosPage = () => {
                 {s.cta?.content || 'Recetas tradicionales y la historia de la pastelería colombiana.'}
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link to={s.cta?.cta_link || '/blog'} className="btn-outline-light gap-2">
+                <CtaLink to={s.cta?.cta_link} fallback="/blog" className="btn-outline-light gap-2">
                   {s.cta?.cta_text || 'Ir al blog'} <ArrowRight className="w-4 h-4" />
-                </Link>
+                </CtaLink>
                 <Link to="/menu" className="btn-outline-light">Ver menú</Link>
               </div>
             </FadeInWhenVisible>

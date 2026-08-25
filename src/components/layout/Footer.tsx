@@ -2,17 +2,28 @@ import { Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Instagram, Facebook, Mail } from 'lucide-react';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
 import { useSedes } from '@/hooks/useSedes';
+import { ensureHttp } from '@/lib/cmsGuards';
 import logoImg from '@/assets/images/logo.webp';
+
+const menuLinks = [
+  { to: '/menu?cat=pasteleria', label: 'Pastelería' },
+  { to: '/menu?cat=pies', label: 'Pies' },
+  { to: '/menu?cat=cafeteria', label: 'Cafetería' },
+  { to: '/menu?cat=bebidas', label: 'Bebidas' },
+  { to: '/menu?cat=delicias', label: 'Delicias' },
+  { to: '/menu?cat=combos', label: 'Combos' },
+];
 
 export const Footer = () => {
   const { settings, isLoading: settingsLoading } = useSiteSettingsMap();
-  const { sedes } = useSedes();
+  const { tiendas } = useSedes();
 
   const brandName = settings.brand_name || 'DC Delicias Colombianas';
   const brandSubtitle = settings.brand_subtitle || 'Arbey Cabrera · Originales desde 1985';
   const brandLogo = settingsLoading ? null : (settings.brand_logo || logoImg);
-  const socialInstagram = settings.social_instagram || '';
-  const socialFacebook = settings.social_facebook || '';
+  const socialInstagram = ensureHttp(settings.social_instagram);
+  const socialFacebook = ensureHttp(settings.social_facebook);
+  const year = new Date().getFullYear();
 
   return (
     <footer className="bg-foreground text-background">
@@ -41,13 +52,13 @@ export const Footer = () => {
               </div>
             </div>
             <p className="text-background/60 text-sm leading-relaxed max-w-xs">
-              Más de {new Date().getFullYear() - 1985} años llevando el sabor auténtico colombiano a tu mesa. Pasteles, empanadas, café y mucho más.
+              Más de {year - 1985} años llevando el sabor auténtico colombiano a tu mesa. Pasteles, empanadas, café y mucho más.
             </p>
             <div className="flex items-center gap-3 mt-6">
-              {socialInstagram && <a href={socialInstagram} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center text-background/60 hover:bg-primary hover:text-primary-foreground transition-all">
+              {socialInstagram && <a href={socialInstagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center text-background/60 hover:bg-primary hover:text-primary-foreground transition-all">
                 <Instagram className="w-4 h-4" />
               </a>}
-              {socialFacebook && <a href={socialFacebook} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center text-background/60 hover:bg-primary hover:text-primary-foreground transition-all">
+              {socialFacebook && <a href={socialFacebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center text-background/60 hover:bg-primary hover:text-primary-foreground transition-all">
                 <Facebook className="w-4 h-4" />
               </a>}
             </div>
@@ -56,11 +67,9 @@ export const Footer = () => {
           <div className="md:col-span-2">
             <h4 className="text-[11px] font-bold text-primary uppercase tracking-[0.15em] mb-5">Menú</h4>
             <div className="space-y-3">
-              <Link to="/menu?cat=pasteleria" className="block text-sm text-background/55 hover:text-background transition-colors">Pastelería</Link>
-              <Link to="/menu?cat=cafeteria" className="block text-sm text-background/55 hover:text-background transition-colors">Cafetería</Link>
-              <Link to="/menu?cat=bebidas" className="block text-sm text-background/55 hover:text-background transition-colors">Bebidas</Link>
-              <Link to="/menu?cat=delicias" className="block text-sm text-background/55 hover:text-background transition-colors">Delicias</Link>
-              <Link to="/menu?cat=combos" className="block text-sm text-background/55 hover:text-background transition-colors">Combos</Link>
+              {menuLinks.map((l) => (
+                <Link key={l.to} to={l.to} className="block text-sm text-background/55 hover:text-background transition-colors">{l.label}</Link>
+              ))}
             </div>
           </div>
 
@@ -77,15 +86,17 @@ export const Footer = () => {
           <div className="md:col-span-4">
             <h4 className="text-[11px] font-bold text-primary uppercase tracking-[0.15em] mb-5">Nuestras Sedes</h4>
             <div className="space-y-5">
-              {sedes.map((s) => (
-                <div key={s.name} className="bg-background/5 rounded-xl p-4">
+              {tiendas.map((s) => (
+                <div key={s.id} className="bg-background/5 rounded-xl p-4">
                   <p className="font-bold text-background text-sm">{s.name}</p>
                   <div className="mt-2 space-y-1">
-                    <p className="text-background/50 text-xs flex items-center gap-2"><MapPin className="w-3 h-3 shrink-0" /> {s.address}</p>
-                    <p className="text-background/50 text-xs flex items-center gap-2"><Clock className="w-3 h-3 shrink-0" /> {s.hours}</p>
-                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="text-primary text-xs font-semibold flex items-center gap-2">
-                      <Phone className="w-3 h-3 shrink-0" /> {s.phone}
-                    </a>
+                    {s.address && <p className="text-background/50 text-xs flex items-center gap-2"><MapPin className="w-3 h-3 shrink-0" /> {s.address}</p>}
+                    {s.hours && <p className="text-background/50 text-xs flex items-center gap-2"><Clock className="w-3 h-3 shrink-0" /> {s.hours}</p>}
+                    {s.phone && (
+                      <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="text-primary text-xs font-semibold flex items-center gap-2">
+                        <Phone className="w-3 h-3 shrink-0" /> {s.phone}
+                      </a>
+                    )}
                     {s.email && (
                       <a href={`mailto:${s.email}`} className="text-secondary-foreground text-xs flex items-center gap-2 mt-1">
                         <Mail className="w-3 h-3 shrink-0" /> {s.email}
@@ -99,8 +110,9 @@ export const Footer = () => {
         </div>
 
         <div className="border-t border-background/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-[11px] text-background/40">© {new Date().getFullYear()} {brandName} - Arbey Cabrera. Todos los derechos reservados.</span>
-          <div className="flex items-center gap-6 text-[11px] text-background/40">
+          <span className="text-[11px] text-background/40">© {year} {brandName} - Arbey Cabrera. Todos los derechos reservados.</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-background/40">
+            <Link to="/politica-de-datos" className="hover:text-background transition-colors">Política de datos</Link>
             <span>Bogotá, Colombia 🇨🇴</span>
             <span>Tradición desde 1985</span>
           </div>

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { SafeImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -6,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { Skeleton } from '@/components/ui/skeleton';
+import { tokenizeInline } from '@/lib/cmsGuards';
 import heroImg from '@/assets/images/hero-pastel.webp';
 
 interface BlogArticle {
@@ -228,11 +230,66 @@ const articles: Record<string, BlogArticle> = {
 const formatDate = (d: string) =>
   new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 
+const categoryLabels: Record<string, string> = {
+  recetas: 'Recetas',
+  historia: 'Historia',
+  tips: 'Tips',
+  noticias: 'Noticias',
+};
+const categoryLabel = (c: string | null | undefined) => (c ? categoryLabels[c.toLowerCase()] || c : '');
+
+/** Párrafo con mini-markdown (`**negrita**`, `*cursiva*`). Nunca inyecta HTML crudo. */
+const InlineMarkdown = ({ text }: { text: string }) => (
+  <>
+    {tokenizeInline(text).map((t, i) => {
+      if (t.type === 'bold') return <strong key={i} className="font-semibold text-foreground">{t.value}</strong>;
+      if (t.type === 'italic') return <em key={i}>{t.value}</em>;
+      return <Fragment key={i}>{t.value}</Fragment>;
+    })}
+  </>
+);
+
+const CtaBlock = () => (
+  <div className="mt-16 p-8 bg-section-cream rounded-2xl text-center">
+    <ChefHat className="w-8 h-8 text-primary mx-auto mb-3" />
+    <h3 className="font-display text-xl mb-2">¿Quieres probar nuestros productos?</h3>
+    <p className="text-sm text-muted-foreground mb-5">Visítanos en nuestras sedes o haz tu pedido en línea.</p>
+    <Link to="/menu" className="btn-primary">Ver Menú</Link>
+  </div>
+);
+
+/** Artículos relacionados (misma categoría) del mapa local; sirve para posts de la DB y locales. */
+const RelatedArticles = ({ slug, category }: { slug: string; category: string }) => {
+  const cat = (category || '').toLowerCase();
+  const related = Object.values(articles)
+    .filter((a) => a.slug !== slug && a.category.toLowerCase() === cat)
+    .slice(0, 2);
+  if (related.length === 0) return null;
+  return (
+    <div className="mt-16">
+      <h3 className="font-display text-2xl mb-6">Artículos relacionados</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {related.map((r) => (
+          <Link
+            key={r.slug}
+            to={`/blog/${r.slug}`}
+            className="group block p-6 rounded-2xl bg-section-cream hover:shadow-elevated transition-all"
+          >
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{r.category}</span>
+            <h4 className="font-display text-base mt-2 group-hover:text-primary transition-colors leading-snug line-clamp-2">{r.title}</h4>
+            <p className="text-xs text-muted-foreground mt-2">{r.readTime}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const BlogDetailPage = () => {
   const { slug } = useParams();
-  usePageTitle(slug ? slug.replace(/-/g, ' ') : 'Blog');
 
-  // Try to load from DB
+  // Sin filtro `published`: así distinguimos "existe pero es borrador" (no se muestra y NO cae al
+  // artículo local) de "no existe" (fallback local). Las políticas RLS deciden qué filas ve cada visitante.
   const { data: dbPost, isLoading } = useQuery({
     queryKey: ['blog-post', slug],
     queryFn: async () => {
@@ -241,7 +298,6 @@ const BlogDetailPage = () => {
         .from('blog_posts')
         .select('*')
         .eq('slug', slug)
-        .eq('published', true)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -249,8 +305,14 @@ const BlogDetailPage = () => {
     enabled: !!slug,
   });
 
-  // Fallback to hardcoded
-  const hardcoded = slug ? articles[slug] : null;
+  const isDraft = !!dbPost && dbPost.published === false;
+  const visiblePost = dbPost && !isDraft ? dbPost : null;
+  // Artículo local solo cuando NO hay ninguna fila en la DB con ese slug (pedido del dueño).
+  const hardcoded = !dbPost && slug ? articles[slug] ?? null : null;
+
+  // Título real en cuanto se conoce (usePageTitle es un efecto keyed en este valor).
+  const pageTitle = isLoading ? 'Blog' : (visiblePost?.title ?? hardcoded?.title ?? 'Artículo no encontrado');
+  usePageTitle(pageTitle);
 
   if (isLoading) {
     return (
@@ -267,9 +329,10 @@ const BlogDetailPage = () => {
     );
   }
 
-  // If DB post found, render it
-  if (dbPost) {
-    const paragraphs = dbPost.content?.split('\n\n').filter(Boolean) || [];
+  // Post de la DB (publicado)
+  if (visiblePost) {
+    const paragraphs = (visiblePost.content || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    const readTime = (visiblePost.read_time || '').trim();
     return (
       <div className="py-10">
         <div className="container max-w-3xl">
@@ -277,44 +340,38 @@ const BlogDetailPage = () => {
             <ArrowLeft className="w-4 h-4" /> Volver al blog
           </Link>
           <FadeInWhenVisible>
-            {dbPost.image_url && (
-              <div className="rounded-2xl overflow-hidden shadow-elevated mb-10">
-                <SafeImage src={dbPost.image_url} alt={dbPost.title} className="w-full aspect-[2/1] object-cover" priority />
-              </div>
-            )}
+            <div className="rounded-2xl overflow-hidden shadow-elevated mb-10">
+              <SafeImage src={visiblePost.image_url || heroImg} alt={visiblePost.title} className="w-full aspect-[2/1] object-cover" priority />
+            </div>
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <span className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-accent/10 text-accent">
-                {dbPost.category}
+                {categoryLabel(visiblePost.category)}
               </span>
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar className="w-3.5 h-3.5" /> {formatDate(dbPost.published_at || dbPost.created_at)}
+                <Calendar className="w-3.5 h-3.5" /> {formatDate(visiblePost.published_at || visiblePost.created_at)}
               </span>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="w-3.5 h-3.5" /> {dbPost.read_time}
-              </span>
+              {readTime && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5" /> {readTime}
+                </span>
+              )}
             </div>
-            <h1 className="font-display text-3xl md:text-5xl leading-tight mb-8">{dbPost.title}</h1>
+            <h1 className="font-display text-3xl md:text-5xl leading-tight mb-8">{visiblePost.title}</h1>
             <div className="space-y-5">
-              {paragraphs.map((p: string, i: number) => (
-                <p key={i} className="text-muted-foreground text-lg leading-relaxed">{p}</p>
+              {paragraphs.map((p, i) => (
+                <p key={i} className="text-muted-foreground text-lg leading-relaxed"><InlineMarkdown text={p} /></p>
               ))}
             </div>
-            <div className="mt-16 p-8 bg-section-cream rounded-2xl text-center">
-              <ChefHat className="w-8 h-8 text-primary mx-auto mb-3" />
-              <h3 className="font-display text-xl mb-2">¿Quieres probar nuestros productos?</h3>
-              <p className="text-sm text-muted-foreground mb-5">Visítanos en nuestras sedes o haz tu pedido en línea.</p>
-              <Link to="/menu" className="btn-primary">Ver Menú</Link>
-            </div>
+            <CtaBlock />
+            <RelatedArticles slug={visiblePost.slug} category={visiblePost.category} />
           </FadeInWhenVisible>
         </div>
       </div>
     );
   }
 
-  // Fallback to hardcoded article
-  const article = hardcoded;
-
-  if (!article) {
+  // Borrador o slug inexistente
+  if (!hardcoded) {
     return (
       <div className="container py-20 text-center">
         <h1 className="font-display text-2xl mb-4">Artículo no encontrado</h1>
@@ -323,6 +380,8 @@ const BlogDetailPage = () => {
     );
   }
 
+  // Artículo local (fallback)
+  const article = hardcoded;
   return (
     <div className="py-10">
       <div className="container max-w-3xl">
@@ -347,38 +406,12 @@ const BlogDetailPage = () => {
 
           <div className="space-y-5">
             {article.content.map((p, i) => (
-              <p key={i} className="text-muted-foreground text-lg leading-relaxed">{p}</p>
+              <p key={i} className="text-muted-foreground text-lg leading-relaxed"><InlineMarkdown text={p} /></p>
             ))}
           </div>
 
-          {/* CTA */}
-          <div className="mt-16 p-8 bg-section-cream rounded-2xl text-center">
-            <ChefHat className="w-8 h-8 text-primary mx-auto mb-3" />
-            <h3 className="font-display text-xl mb-2">¿Quieres probar nuestros productos?</h3>
-            <p className="text-sm text-muted-foreground mb-5">Visítanos en nuestras sedes o haz tu pedido en línea.</p>
-            <Link to="/menu" className="btn-primary">Ver Menú</Link>
-          </div>
-
-          {/* Related articles */}
-          <div className="mt-16">
-            <h3 className="font-display text-2xl mb-6">Artículos relacionados</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.values(articles)
-                .filter((a) => a.slug !== article.slug && a.category === article.category)
-                .slice(0, 2)
-                .map((related) => (
-                  <Link
-                    key={related.slug}
-                    to={`/blog/${related.slug}`}
-                    className="group block p-6 rounded-2xl bg-section-cream hover:shadow-elevated transition-all"
-                  >
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">{related.category}</span>
-                    <h4 className="font-display text-base mt-2 group-hover:text-primary transition-colors leading-snug line-clamp-2">{related.title}</h4>
-                    <p className="text-xs text-muted-foreground mt-2">{related.readTime}</p>
-                  </Link>
-                ))}
-            </div>
-          </div>
+          <CtaBlock />
+          <RelatedArticles slug={article.slug} category={article.category} />
         </FadeInWhenVisible>
       </div>
     </div>

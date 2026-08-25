@@ -1,13 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThumbImage } from '@/components/ThumbImage';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAllPageSections, useUpdatePageSection, PageSection } from '@/hooks/usePageSections';
-import { Loader2, Eye, EyeOff, Save, ChevronDown, ChevronRight, Image as ImageIcon, Upload, ArrowLeft, Layers, Monitor, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { Loader2, Save, ChevronDown, ChevronRight, Image as ImageIcon, Upload, ArrowLeft, Layers, Monitor, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { uploadOptimizedImage, isImageFile, MAX_UPLOAD_BYTES } from '@/lib/storage';
 import { MediaSelectorModal } from '@/components/admin/MediaSelectorModal';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ensureSlideCtas, type HeroSlide } from '@/lib/cmsGuards';
+
+/** metadata del hero de la portada: `{ slides: [...] }` más claves libres. */
+type HeroMeta = { slides?: HeroSlide[]; [key: string]: unknown };
+
+const asHeroMeta = (meta: unknown): HeroMeta => (meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as HeroMeta) : {});
+const slidesOf = (meta: unknown): HeroSlide[] => {
+  const s = asHeroMeta(meta).slides;
+  return Array.isArray(s) ? s : [];
+};
+/** Copia inmutable de un slide con un campo (o subcampo `cta.label`) cambiado. */
+const withSlideField = (slide: HeroSlide, field: string, value: string): HeroSlide => {
+  const [head, sub] = field.split('.');
+  if (!sub) return { ...slide, [head]: value };
+  const current = slide[head as 'cta' | 'cta2'];
+  return { ...slide, [head]: { ...(current && typeof current === 'object' ? current : {}), [sub]: value } };
+};
 
 const pageLabels: Record<string, string> = {
   index: 'Inicio',
@@ -157,36 +174,30 @@ const SectionPreview = ({ section, getVal }: { section: PageSection; getVal: (id
 };
 
 // Hero Slider Editor Component
-const HeroSliderEditor = ({ 
-  sectionId,
-  metadata, 
-  onChange, 
+const HeroSliderEditor = ({
+  metadata,
+  onChange,
   onOpenMedia,
   onImageUpload,
   uploading
-}: { 
-  sectionId: string;
-  metadata: any; 
-  onChange: (val: any) => void; 
+}: {
+  metadata: unknown;
+  onChange: (val: HeroMeta) => void;
   onOpenMedia: (slideIndex: number, field: string) => void;
   onImageUpload: (index: number, field: string, file: File) => Promise<void>;
   uploading: string | null;
 }) => {
-  const slides = metadata?.slides || [];
+  const meta = asHeroMeta(metadata);
+  const slides = slidesOf(metadata);
 
-  const updateSlide = (index: number, field: string, value: any) => {
-    const newSlides = [...slides];
-    const path = field.split('.');
-    if (path.length === 1) {
-      newSlides[index][field] = value;
-    } else {
-      newSlides[index][path[0]] = { ...newSlides[index][path[0]], [path[1]]: value };
-    }
-    onChange({ ...metadata, slides: newSlides });
+  // Nunca se muta el estado en sitio: cada cambio produce slides nuevos.
+  const updateSlide = (index: number, field: string, value: string) => {
+    const newSlides = slides.map((s, i) => (i === index ? withSlideField(s, field, value) : s));
+    onChange({ ...meta, slides: newSlides });
   };
 
   const addSlide = () => {
-    const newSlide = {
+    const newSlide: HeroSlide = {
       tag: 'Nueva Etiqueta',
       title: 'Nuevo Título',
       desc: 'Descripción de la diapositiva...',
@@ -194,7 +205,7 @@ const HeroSliderEditor = ({
       cta: { to: '/menu', label: 'Botón 1' },
       cta2: { to: '/nosotros', label: 'Botón 2' }
     };
-    onChange({ ...metadata, slides: [...slides, newSlide] });
+    onChange({ ...meta, slides: [...slides, newSlide] });
   };
 
   const removeSlide = (index: number) => {
@@ -202,8 +213,7 @@ const HeroSliderEditor = ({
       toast.error("Debes tener al menos una diapositiva en el slider.");
       return;
     }
-    const newSlides = slides.filter((_: any, i: number) => i !== index);
-    onChange({ ...metadata, slides: newSlides });
+    onChange({ ...meta, slides: slides.filter((_, i) => i !== index) });
   };
 
   const moveSlide = (index: number, direction: 'up' | 'down') => {
@@ -211,7 +221,7 @@ const HeroSliderEditor = ({
     const target = direction === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= slides.length) return;
     [newSlides[index], newSlides[target]] = [newSlides[target], newSlides[index]];
-    onChange({ ...metadata, slides: newSlides });
+    onChange({ ...meta, slides: newSlides });
   };
 
   return (
@@ -229,7 +239,7 @@ const HeroSliderEditor = ({
       </div>
 
       <div className="space-y-4">
-        {slides.map((slide: any, index: number) => (
+        {slides.map((slide, index) => (
           <div key={index} className="p-4 border rounded-xl bg-secondary/20 relative group">
             <div className="absolute -left-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => moveSlide(index, 'up')} className="p-1.5 rounded-md bg-card border shadow-sm hover:text-primary"><ArrowUp className="w-3 h-3" /></button>
@@ -360,6 +370,7 @@ const HeroSliderEditor = ({
 };
 
 const AdminSections = () => {
+  usePageTitle('Secciones');
   const [searchParams] = useSearchParams();
   const filterPage = searchParams.get('page');
   const { data: sections, isLoading } = useAllPageSections();
@@ -373,6 +384,27 @@ const AdminSections = () => {
   const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
   const [mediaSelectorTarget, setMediaSelectorTarget] = useState<string | null>(null);
   const [sliderMediaTarget, setSliderMediaTarget] = useState<{ id: string; slide: number; field: string } | null>(null);
+
+  // Al cambiar de página (?page=) desde el menú lateral, el estado de edición y los acordeones
+  // se reinician: antes quedaban cambios sin guardar de una página "pegados" en la otra.
+  useEffect(() => {
+    setExpanded(filterPage ? { [filterPage]: true } : {});
+    setEditValues({});
+    setMediaSelectorTarget(null);
+    setSliderMediaTarget(null);
+  }, [filterPage]);
+
+  // Aviso del navegador si se cierra/recarga la pestaña con cambios sin guardar.
+  const hasUnsaved = Object.keys(editValues).length > 0;
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsaved]);
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
@@ -398,6 +430,8 @@ const AdminSections = () => {
 
   const isDirty = (id: string) => !!editValues[id] && Object.keys(editValues[id]).length > 0;
 
+  const isHomeHero = (section: PageSection) => section.section_key === 'hero' && section.page_slug === 'index';
+
   const handleSave = async (section: PageSection) => {
     const updates = { ...editValues[section.id] };
     if (!updates || Object.keys(updates).length === 0) return;
@@ -405,11 +439,19 @@ const AdminSections = () => {
       if (typeof updates.metadata === 'string') {
         updates.metadata = JSON.parse(updates.metadata);
       }
+      // Cada slide del hero debe tener `cta` y `cta2` completos: la portada no puede renderizar
+      // un botón sin destino, y un slide sin ellos tumbaba la home.
+      if (isHomeHero(section) && updates.metadata && typeof updates.metadata === 'object') {
+        const meta = asHeroMeta(updates.metadata);
+        if (Array.isArray(meta.slides)) {
+          updates.metadata = { ...meta, slides: meta.slides.map((s) => ensureSlideCtas(s)) };
+        }
+      }
       await updateSection.mutateAsync({ id: section.id, ...updates });
       setEditValues(prev => { const n = { ...prev }; delete n[section.id]; return n; });
       toast.success(`Sección "${section.section_key}" guardada`);
-    } catch (e: any) {
-      toast.error('Asegúrate de que el JSON sea válido antes de guardar.\n' + e.message);
+    } catch (e: unknown) {
+      toast.error('Asegúrate de que el JSON sea válido antes de guardar.\n' + (e instanceof Error ? e.message : ''));
     }
   };
 
@@ -541,7 +583,7 @@ const AdminSections = () => {
                             <div>
                               <label className="text-xs font-medium text-muted-foreground mb-1 block">Subtítulo / Etiqueta</label>
                               <input
-                                value={getVal(section.id, 'subtitle') as string}
+                                value={(getVal(section.id, 'subtitle') as string) ?? ''}
                                 onChange={e => setVal(section.id, 'subtitle', e.target.value)}
                                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm"
                               />
@@ -549,7 +591,7 @@ const AdminSections = () => {
                             <div>
                               <label className="text-xs font-medium text-muted-foreground mb-1 block">Título</label>
                               <input
-                                value={getVal(section.id, 'title') as string}
+                                value={(getVal(section.id, 'title') as string) ?? ''}
                                 onChange={e => setVal(section.id, 'title', e.target.value)}
                                 className="w-full px-3 py-2 rounded-xl border bg-background text-sm"
                               />
@@ -559,7 +601,7 @@ const AdminSections = () => {
                           <div>
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Contenido</label>
                             <textarea
-                              value={getVal(section.id, 'content') as string}
+                              value={(getVal(section.id, 'content') as string) ?? ''}
                               onChange={e => setVal(section.id, 'content', e.target.value)}
                               className="w-full px-3 py-2 rounded-xl border bg-background text-sm min-h-[80px]"
                             />
@@ -617,9 +659,8 @@ const AdminSections = () => {
                           </div>
 
                           <div>
-                            {section.section_key === 'hero' && section.page_slug === 'index' ? (
-                              <HeroSliderEditor 
-                                sectionId={section.id}
+                            {isHomeHero(section) ? (
+                              <HeroSliderEditor
                                 metadata={getVal(section.id, 'metadata')}
                                 onChange={(newMeta) => setVal(section.id, 'metadata', newMeta)}
                                 onOpenMedia={(slideIdx, field) => setSliderMediaTarget({ id: section.id, slide: slideIdx, field })}
@@ -631,13 +672,13 @@ const AdminSections = () => {
                                   try {
                                     const { url } = await uploadOptimizedImage({ file, preset: 'hero', prefix: `slide-${section.id}-${idx}` });
 
-                                    const currentMeta = getVal(section.id, 'metadata') as any;
-                                    const newSlides = [...(currentMeta?.slides || [])];
-                                    if (newSlides[idx]) {
-                                      newSlides[idx] = { ...newSlides[idx], [field]: url };
+                                    const currentMeta = asHeroMeta(getVal(section.id, 'metadata'));
+                                    const currentSlides = slidesOf(currentMeta);
+                                    if (currentSlides[idx]) {
+                                      const newSlides = currentSlides.map((s, i) => (i === idx ? withSlideField(s, field, url) : s));
                                       setVal(section.id, 'metadata', { ...currentMeta, slides: newSlides });
                                     }
-                                    toast.success('Imagen de diapositiva subida');
+                                    toast.success('Imagen de diapositiva subida (pulsa Guardar para aplicarla)');
                                   } catch {
                                     toast.error('Error al subir imagen de diapositiva');
                                   } finally {
@@ -706,17 +747,16 @@ const AdminSections = () => {
           isOpen={!!sliderMediaTarget} 
           onClose={() => setSliderMediaTarget(null)} 
           onSelect={(url) => {
-            const currentMeta = getVal(sliderMediaTarget.id, 'metadata') as any;
-            const newSlides = [...(currentMeta?.slides || [])];
-            const slideIdx = sliderMediaTarget.slide;
-            const field = sliderMediaTarget.field;
-            
-            if (newSlides[slideIdx]) {
-              newSlides[slideIdx][field] = url;
+            const currentMeta = asHeroMeta(getVal(sliderMediaTarget.id, 'metadata'));
+            const currentSlides = slidesOf(currentMeta);
+            const { slide: slideIdx, field } = sliderMediaTarget;
+
+            if (currentSlides[slideIdx]) {
+              const newSlides = currentSlides.map((s, i) => (i === slideIdx ? withSlideField(s, field, url) : s));
               setVal(sliderMediaTarget.id, 'metadata', { ...currentMeta, slides: newSlides });
             }
             setSliderMediaTarget(null);
-          }} 
+          }}
         />
       )}
     </div>

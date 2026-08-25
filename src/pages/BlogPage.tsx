@@ -43,10 +43,17 @@ interface BlogPost {
   excerpt: string;
   category: string;
   image_url: string | null;
-  read_time: string;
+  read_time: string | null;
   published_at: string | null;
   created_at: string;
 }
+
+/** "25 ago 2026 · 5 min" — sin el separador cuando el post no tiene tiempo de lectura. */
+const postMeta = (post: Pick<BlogPost, 'published_at' | 'created_at' | 'read_time'>) => {
+  const date = formatDate(post.published_at || post.created_at);
+  const readTime = (post.read_time || '').trim();
+  return readTime ? `${date} · ${readTime}` : date;
+};
 
 const categoryLabels: Record<string, string> = {
   recetas: 'Recetas',
@@ -60,18 +67,35 @@ const formatDate = (d: string) =>
 
 const BlogPage = () => {
   usePageTitle('Blog');
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['blog-posts'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('blog_posts')
         .select('*')
         .eq('published', true)
-        .order('published_at', { ascending: false });
+        // Posts publicados sin fecha van al final (por defecto Postgres pone los NULL primero en DESC).
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data as BlogPost[];
     },
   });
+
+  if (isError) {
+    return (
+      <section className="w-full bg-section-warm py-24 text-center">
+        <div className="max-w-[1440px] mx-auto px-6">
+          <h1 className="font-display text-4xl md:text-5xl text-foreground mb-4">Blog</h1>
+          <p className="text-muted-foreground mb-2">No pudimos cargar los artículos en este momento.</p>
+          <p className="text-xs text-muted-foreground/70 mb-6">{error instanceof Error ? error.message : 'Error de conexión'}</p>
+          <button onClick={() => refetch()} disabled={isFetching} className="btn-primary disabled:opacity-60">
+            {isFetching ? 'Reintentando…' : 'Reintentar'}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -129,9 +153,7 @@ const BlogPage = () => {
               {first.title}
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed mb-4">{first.excerpt}</p>
-            <p className="text-xs text-muted-foreground/60 mb-6">
-              {first.published_at ? formatDate(first.published_at) : formatDate(first.created_at)} · {first.read_time}
-            </p>
+            <p className="text-xs text-muted-foreground/60 mb-6">{postMeta(first)}</p>
             <div>
               <Link to={`/blog/${first.slug}`} className="btn-primary gap-2">
                 Leer artículo <ArrowRight className="w-4 h-4" />
@@ -168,9 +190,7 @@ const BlogPage = () => {
                         </span>
                         <h3 className="font-display text-lg group-hover:text-primary transition-colors line-clamp-2 leading-snug">{post.title}</h3>
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed flex-1">{post.excerpt}</p>
-                        <p className="text-xs text-muted-foreground/50 mt-3">
-                          {post.published_at ? formatDate(post.published_at) : formatDate(post.created_at)} · {post.read_time}
-                        </p>
+                        <p className="text-xs text-muted-foreground/50 mt-3">{postMeta(post)}</p>
                       </div>
                     </div>
                   </Link>

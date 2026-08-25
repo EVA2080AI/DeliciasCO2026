@@ -1,31 +1,39 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Store, Loader2 } from 'lucide-react';
-import { useSedes } from '@/hooks/useSedes';
+import { DEFAULT_WHATSAPP, useSedes } from '@/hooks/useSedes';
+import { buildWaUrl } from '@/lib/whatsapp';
+
+type Contact = { id: string; name: string; whatsapp: string };
+
+const FALLBACK_CONTACTS: Contact[] = [{ id: 'default', name: 'Delicias Colombianas', whatsapp: DEFAULT_WHATSAPP }];
 
 export const FloatingWhatsApp = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { sedes, isLoading } = useSedes();
+  const { tiendas, isLoading } = useSedes();
 
-  // Cerrar si hace click afuera
+  // Cerrar si hace click afuera o con Escape
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
-  const tiendas = sedes?.filter(s => s.type === 'tienda') || [];
-
-  if (tiendas.length === 0) return null;
+  // Sin tiendas en el CMS seguimos mostrando el botón con el número de respaldo.
+  const contacts: Contact[] = tiendas.length > 0 ? tiendas : FALLBACK_CONTACTS;
 
   return (
     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end" ref={dropdownRef}>
@@ -35,29 +43,36 @@ export const FloatingWhatsApp = () => {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="mb-4 w-72 bg-card border shadow-elevated rounded-2xl overflow-hidden"
+            role="dialog"
+            aria-label="Escríbenos por WhatsApp"
           >
             <div className="bg-[#25D366] p-4 text-white">
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-sm tracking-wide">¡Hola! ¿En qué sede estás?</h4>
-                <button onClick={() => setIsOpen(false)} className="opacity-70 hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Cerrar"
+                  className="opacity-70 hover:opacity-100 transition-opacity"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <p className="text-xs text-white/90 mt-1">Elige tu sucursal para atenderte más rápido.</p>
             </div>
-            
+
             <div className="p-2 space-y-1 bg-background/50 max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex justify-center py-4">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                tiendas.map((sede) => (
+                contacts.map((sede) => (
                   <a
                     key={sede.id}
-                    href={`https://wa.me/${sede.whatsapp}?text=${encodeURIComponent('Hola, me gustaría información/hacer un pedido en ' + sede.name)}`}
+                    href={buildWaUrl(sede.whatsapp, `Hola, me gustaría información/hacer un pedido en ${sede.name}`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/80 transition-colors group cursor-pointer"
@@ -83,11 +98,11 @@ export const FloatingWhatsApp = () => {
         onClick={() => setIsOpen(!isOpen)}
         aria-label={isOpen ? 'Cerrar chat de WhatsApp' : 'Abrir chat de WhatsApp'}
         aria-expanded={isOpen}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         className="w-14 h-14 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow relative z-50 group"
       >
         {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-7 h-7" />}
-        
+
         {/* Pulsing notification dot when closed */}
         {!isOpen && (
           <span className="absolute top-0 right-0 w-3 h-3" aria-hidden="true">

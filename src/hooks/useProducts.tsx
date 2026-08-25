@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/store/cartStore';
+import { isUuid } from '@/lib/checkoutValidation';
 
 interface DbProduct {
   id: string;
@@ -8,7 +9,7 @@ interface DbProduct {
   description: string;
   long_description: string | null;
   price: number;
-  category: 'pasteleria' | 'cafeteria' | 'delicias' | 'bebidas' | 'combos';
+  category: 'pasteleria' | 'cafeteria' | 'delicias' | 'bebidas' | 'combos' | 'pies';
   image_url: string | null;
   featured: boolean;
   active: boolean;
@@ -39,7 +40,7 @@ export const useProducts = () => {
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      return (data as DbProduct[]).map(mapDbProduct);
+      return ((data ?? []) as DbProduct[]).map(mapDbProduct);
     },
   });
 };
@@ -48,7 +49,8 @@ export const useProduct = (id: string | undefined) => {
   return useQuery({
     queryKey: ['product', id],
     queryFn: async (): Promise<Product | null> => {
-      if (!id) return null;
+      // Un id que no es uuid haría fallar la consulta (Postgres 22P02): tratamos como "no encontrado".
+      if (!id || !isUuid(id)) return null;
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -59,6 +61,6 @@ export const useProduct = (id: string | undefined) => {
       if (error) throw error;
       return data ? mapDbProduct(data as DbProduct) : null;
     },
-    enabled: !!id,
+    enabled: !!id && isUuid(id),
   });
 };

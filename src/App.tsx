@@ -23,9 +23,11 @@ const BlogPage = lazyWithRetry(() => import("./pages/BlogPage"));
 const BlogDetailPage = lazyWithRetry(() => import("./pages/BlogDetailPage"));
 const FaqPage = lazyWithRetry(() => import("./pages/FaqPage"));
 const CheckoutPage = lazyWithRetry(() => import("./pages/CheckoutPage"));
+const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 
 // Admin: un solo chunk (manualChunks) que los visitantes nunca descargan.
 const AdminLogin = lazyWithRetry(() => import("./pages/admin/AdminLogin"));
+const AdminResetPassword = lazyWithRetry(() => import("./pages/admin/AdminResetPassword"));
 const AdminLayout = lazyWithRetry(() => import("./pages/admin/AdminLayout"));
 const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"));
 const AdminProducts = lazyWithRetry(() => import("./pages/admin/AdminProducts"));
@@ -80,6 +82,7 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
             <Route path="/preguntas-frecuentes" element={<FaqPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/politica-de-datos" element={<PrivacyPage />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
@@ -89,6 +92,14 @@ const App = () => (
             element={
               <Suspense fallback={<PageFallback />}>
                 <AdminLogin />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin/reset-password"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <AdminResetPassword />
               </Suspense>
             }
           />

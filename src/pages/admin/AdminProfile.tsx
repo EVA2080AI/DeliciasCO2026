@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/integrations/supabase/client';
 import { Shield, Lock, Eye, EyeOff, Save, Key, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,6 +8,7 @@ import { toast } from 'sonner';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 
 const AdminProfile = () => {
+  usePageTitle('Perfil');
   const { user } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -114,6 +116,7 @@ const AdminProfile = () => {
               </div>
 
               <motion.button
+                type="submit"
                 whileTap={{ scale: 0.98 }}
                 disabled={updating}
                 className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-soft hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"

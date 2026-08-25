@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -19,7 +20,19 @@ interface Page {
   sort_order: number;
 }
 
+const slugToSectionSlug: Record<string, string> = {
+  inicio: 'index',
+  menu: 'menu',
+  institucional: 'institucional',
+  sedes: 'sedes',
+  nosotros: 'nosotros',
+  blog: 'blog',
+  faq: 'faq',
+  'preguntas-frecuentes': 'faq',
+};
+
 const AdminPages = () => {
+  usePageTitle('Páginas');
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState('');
@@ -72,17 +85,6 @@ const AdminPages = () => {
 
   const activeCount = pages?.filter(p => p.active).length || 0;
 
-  const slugToSectionSlug: Record<string, string> = {
-    inicio: 'index',
-    menu: 'menu',
-    institucional: 'institucional',
-    sedes: 'sedes',
-    nosotros: 'nosotros',
-    blog: 'blog',
-    faq: 'faq',
-    'preguntas-frecuentes': 'faq',
-  };
-
   return (
     <div>
       <FadeInWhenVisible>
@@ -103,28 +105,28 @@ const AdminPages = () => {
           {pages?.map((page) => {
             const sectionSlug = slugToSectionSlug[page.slug] || page.slug;
             const numSections = sectionCounts?.[sectionSlug] || 0;
+            const editable = numSections > 0;
 
-            return (
-              <Link
-                key={page.id}
-                to={numSections > 0 ? `/admin/sections?page=${sectionSlug}` : '#'}
-                className="block"
-              >
+            const card = (
                 <motion.div
                   layout
-                  className="bg-card border rounded-xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group overflow-hidden"
+                  className={`bg-card border rounded-xl transition-all group overflow-hidden ${editable ? 'hover:border-primary/30 hover:shadow-sm cursor-pointer' : 'cursor-default'}`}
                 >
                   <div className="flex items-center gap-4 p-5">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${page.active ? 'bg-emerald-50 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
                       {page.active ? <Globe className="w-5 h-5" /> : <GlobeLock className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{page.title}</h3>
-                        {numSections > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`font-semibold text-sm transition-colors ${editable ? 'group-hover:text-primary' : ''}`}>{page.title}</h3>
+                        {editable ? (
                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
                             <Layers className="w-3 h-3" />
                             {numSections} secciones
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold" title="Esta página no tiene secciones editables desde el panel">
+                            sin secciones
                           </span>
                         )}
                       </div>
@@ -167,11 +169,24 @@ const AdminPages = () => {
                         onCheckedChange={() => toggleMutation.mutate({ id: page.id, active: !page.active })}
                         disabled={page.slug === 'inicio'}
                       />
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      {editable ? (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      ) : (
+                        <span className="w-4 h-4" aria-hidden="true" />
+                      )}
                     </div>
                   </div>
                 </motion.div>
+            );
+
+            return editable ? (
+              <Link key={page.id} to={`/admin/sections?page=${sectionSlug}`} className="block">
+                {card}
               </Link>
+            ) : (
+              <div key={page.id} className="block">
+                {card}
+              </div>
             );
           })}
         </div>
@@ -179,7 +194,7 @@ const AdminPages = () => {
 
       <div className="mt-6 p-4 bg-section-warm rounded-xl">
         <p className="text-xs text-muted-foreground">
-          <strong>Nota:</strong> La página de Inicio no se puede desactivar. Haz clic en "Editar contenido" para modificar los textos, imágenes y secciones de cada página.
+          <strong>Nota:</strong> La página de Inicio no se puede desactivar. Haz clic en una página con secciones para modificar sus textos, imágenes y bloques.
         </p>
       </div>
     </div>

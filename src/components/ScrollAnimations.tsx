@@ -181,7 +181,6 @@ const AnimatedNumber = ({ end, duration }: { end: number; duration: number }) =>
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let start = 0;
     const startTime = performance.now();
 
     const animate = (time: number) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
@@ -7,7 +7,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,10 +15,16 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   loading: true,
   signIn: async () => ({ error: null }),
-  signOut: async () => {},
+  signOut: async () => ({ error: null }),
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+/**
+ * Cuentas principales con acceso directo al panel (decisión del dueño). OJO: esto NO otorga
+ * permisos RLS (storage, tablas): para eso el usuario necesita su fila en `user_roles`.
+ */
+const BYPASS_EMAILS = new Set(['admin@delicias.com', 'deliciascolombianas1985@gmail.com']);
 
 // ─── DB check: does this userId have role='admin' in user_roles? ───────────────
 const fetchIsAdmin = async (userId: string, retries = 3): Promise<boolean> => {
@@ -29,17 +35,16 @@ const fetchIsAdmin = async (userId: string, retries = 3): Promise<boolean> => {
       .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
-      
+
     if (error) {
       console.error('[useAuth] fetchIsAdmin error:', error.message);
       return false;
     }
     return !!data;
-  } catch (err: any) {
-    if (err?.name === 'AbortError' && retries > 0) {
-      console.warn(`[useAuth] fetchIsAdmin hit AbortError. Retrying... (${retries} attempts left)`);
-      // Wait a short moment for the auth lock to release
-      await new Promise(resolve => setTimeout(resolve, 200));
+  } catch (err: unknown) {
+    // El lock de auth de supabase-js puede abortar la consulta justo tras un cambio de sesión.
+    if ((err as { name?: string } | null)?.name === 'AbortError' && retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
       return fetchIsAdmin(userId, retries - 1);
     }
     console.error('[useAuth] fetchIsAdmin unexpected error:', err);
@@ -49,18 +54,26 @@ const fetchIsAdmin = async (userId: string, retries = 3): Promise<boolean> => {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser]       = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  // El timer de seguridad lee este ref: el closure del efecto vería `loading` siempre en true.
+  const loadingRef = useRef(true);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    // Safety net — if something hangs, unblock after 8s
+    const setLoadingState = (value: boolean) => {
+      loadingRef.current = value;
+      if (mounted) setLoading(value);
+    };
+
+    // Safety net — si la verificación se cuelga (red, lock de auth), desbloquear la UI a los 8s.
     const safetyTimer = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('[useAuth] Safety timeout triggered — forcing loading=false');
-        setLoading(false);
+      if (mounted && loadingRef.current) {
+        console.error('[useAuth] La verificación de sesión tardó más de 8s; se desbloquea la interfaz.');
+        setLoadingState(false);
       }
     }, 8000);
 
@@ -68,36 +81,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // - INITIAL_SESSION fires on mount with the persisted session (replaces getSession())
     // - SIGNED_IN fires after signInWithPassword succeeds
     // - SIGNED_OUT fires after signOut()
-    // - TOKEN_REFRESHED fires on auto-refresh
+    // - TOKEN_REFRESHED / USER_UPDATED fire for the same user (no role re-check needed)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
+      async (_event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
 
         const u = session?.user ?? null;
         setUser(u);
 
-        if (u) {
-          // Fast-path bypass for the main admin accounts (restored to 8 PM state + qa added)
-          if (
-            u.email?.toLowerCase() === 'admin@delicias.com' ||
-            u.email?.toLowerCase() === 'deliciascolombianas1985@gmail.com'
-          ) {
-            if (!mounted) return;
-            setIsAdmin(true);
-            setLoading(false);
-            return;
-          }
-
-          // Fetch the admin role from DB for other users
-          const adminResult = await fetchIsAdmin(u.id);
-          if (!mounted) return;
-          setIsAdmin(adminResult);
-        } else {
+        if (!u) {
+          // INITIAL_SESSION sin sesión o SIGNED_OUT: desbloquear de inmediato.
+          lastUserIdRef.current = null;
           setIsAdmin(false);
+          setLoadingState(false);
+          return;
         }
 
-        // Only set loading=false AFTER role check is done.
-        setLoading(false);
+        // Mismo usuario ya verificado (refresh de token, cambio de contraseña): nada que rehacer.
+        if (u.id === lastUserIdRef.current && !loadingRef.current) return;
+        lastUserIdRef.current = u.id;
+
+        if (BYPASS_EMAILS.has((u.email ?? '').toLowerCase())) {
+          setIsAdmin(true);
+          setLoadingState(false);
+          return;
+        }
+
+        // Usuario nuevo: mientras se consulta el rol, `loading` en true para que ninguna pantalla
+        // lo trate como "autenticado sin permisos" antes de tiempo.
+        setLoadingState(true);
+        const adminResult = await fetchIsAdmin(u.id);
+        if (!mounted) return;
+        setIsAdmin(adminResult);
+        setLoadingState(false);
       }
     );
 
@@ -106,22 +122,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // signIn: purely delegates to Supabase. State is handled by onAuthStateChange above.
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
-  };
+    return { error: (error as Error | null) ?? null };
+  }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('[useAuth] signOut error:', error.message);
+    return { error: (error as Error | null) ?? null };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, signIn, signOut }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, isAdmin, loading, signIn, signOut }),
+    [user, isAdmin, loading, signIn, signOut],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

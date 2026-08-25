@@ -3,14 +3,17 @@ import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MessageCircle, Clock, ChevronDown, ChevronUp, Filter, Download, Trash2, Loader2 } from 'lucide-react';
+import { Search, MessageCircle, Clock, ChevronDown, ChevronUp, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import type { Database } from '@/integrations/supabase/types';
 import { useSedes } from '@/hooks/useSedes';
+import { buildWaUrl } from '@/lib/whatsapp';
+import { csvCell } from '@/lib/quotation';
 
 type Order = Database['public']['Tables']['orders']['Row'];
 type OrderStatus = Database['public']['Enums']['order_status'];
+type OrderItem = { name: string; quantity: number; price?: number };
 
 const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
@@ -36,7 +39,10 @@ const statusColors: Record<OrderStatus, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-// WhatsApp lookup now driven by useSedes hook at component level
+// El dashboard consulta ['admin-orders-stats', sede] y ['admin-recent-orders', sede]: el prefijo basta.
+const ORDER_KEYS = [['admin-pending-counts'], ['admin-orders'], ['admin-orders-stats'], ['admin-recent-orders']];
+
+const orderItems = (o: Order): OrderItem[] => (Array.isArray(o.items) ? (o.items as OrderItem[]) : []);
 
 const AdminOrders = () => {
   const qc = useQueryClient();
@@ -46,13 +52,18 @@ const AdminOrders = () => {
   const [sedeFilter, setSedeFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data: orders, isLoading } = useAdminQuery({
+  // orders.sede guarda el id de la sede (site_settings.sedes[].id); mostramos el nombre.
+  const sedeName = (id: string | null | undefined) => (id ? sedes.find((s) => s.id === id)?.name ?? id : '');
+  const invalidateOrders = () => ORDER_KEYS.forEach((queryKey) => qc.invalidateQueries({ queryKey }));
+
+  const { data: orders, isLoading, isError, refetch } = useAdminQuery({
     queryKey: ['admin-orders'],
     queryFn: async () => {
       const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data as Order[];
     },
   });
 
@@ -62,8 +73,12 @@ const AdminOrders = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      invalidateOrders();
       toast.success('Estado actualizado');
+    },
+    onError: (error: Error) => {
+      console.error('Error updating order status:', error);
+      toast.error('No se pudo actualizar el estado. Intenta de nuevo.');
     },
   });
 
@@ -72,9 +87,11 @@ const AdminOrders = () => {
       const { error } = await supabase.from('orders').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
-      setSelectedIds(prev => prev.filter(selected => !selected)); // Reset if needed
+    onMutate: (id) => setDeletingId(id),
+    onSettled: () => setDeletingId(null),
+    onSuccess: (_data, id) => {
+      invalidateOrders();
+      setSelectedIds((prev) => prev.filter((selected) => selected !== id));
       toast.success('Pedido eliminado permanentemente');
     },
     onError: () => {
@@ -88,11 +105,11 @@ const AdminOrders = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      invalidateOrders();
       setSelectedIds([]);
       toast.success('Pedidos eliminados correctamente');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Error deleting orders:', error);
       toast.error('Error al eliminar los pedidos');
     }
@@ -104,7 +121,7 @@ const AdminOrders = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      invalidateOrders();
       setSelectedIds([]);
       toast.success('Todos los pedidos han sido eliminados');
     },
@@ -159,22 +176,23 @@ const AdminOrders = () => {
       toast.error('No hay pedidos para exportar');
       return;
     }
-    
-    // Crear cabeceras
-    const headers = ['ID', 'Cliente', 'Teléfono', 'Sede', 'Estado', 'Total', 'Fecha', 'Notas'];
+
+    const headers = ['ID', 'Cliente', 'Teléfono', 'Sede', 'Estado', 'Total', 'Fecha', 'Productos', 'Notas'];
+    // Todos los campos entre comillas y con `"` escapada (nombres/notas pueden traer comas o comillas).
     const rows = filtered.map(o => [
       o.id,
-      `"${o.customer_name}"`, // Escapar comillas si contiene comas
-      `"${o.customer_phone}"`,
-      o.sede,
-      o.status,
+      o.customer_name,
+      o.customer_phone,
+      sedeName(o.sede),
+      statusLabels[o.status] ?? o.status,
       o.total,
-      `"${formatDate(o.created_at)}"`,
-      `"${(o.notes || '').replace(/"/g, '""')}"`
-    ]);
+      formatDate(o.created_at),
+      orderItems(o).map(i => `${i.quantity}x ${i.name}`).join('; '),
+      o.notes || '',
+    ].map(csvCell));
 
     const csvContent = [
-      headers.join(','),
+      headers.map(csvCell).join(','),
       ...rows.map(r => r.join(','))
     ].join('\n');
 
@@ -188,7 +206,25 @@ const AdminOrders = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     toast.success('Archivo CSV descargado correctamente');
+  };
+
+  const waUrlFor = (o: Order) => {
+    const items = orderItems(o)
+      .map(i => `• ${i.quantity}x ${i.name}${i.price ? ` (${formatPrice(i.price * i.quantity)})` : ''}`)
+      .join('\n');
+    const msg = [
+      `Hola ${o.customer_name} 👋, te escribimos de *Delicias Colombianas*.`,
+      ``,
+      `Te contactamos sobre tu pedido:`,
+      items,
+      ``,
+      `*Total: ${formatPrice(o.total)}*`,
+      `Estado actual: *${statusLabels[o.status]}*`,
+      o.notes ? `\nNotas: ${o.notes}` : '',
+    ].join('\n');
+    return buildWaUrl(o.customer_phone, msg);
   };
 
   const inputClass = "px-4 py-2.5 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all";
@@ -246,10 +282,9 @@ const AdminOrders = () => {
               <option value="all">Todos los estados</option>
               {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            <select value={sedeFilter} onChange={(e) => setSedeFilter(e.target.value)} className={inputClass}>
+            <select value={sedeFilter} onChange={(e) => setSedeFilter(e.target.value)} className={inputClass} aria-label="Filtrar por sede">
               <option value="all">Todas las sedes</option>
-              <option value="quirinal">Quirinal</option>
-              <option value="sprint">Sprint Norte</option>
+              {sedes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <button
@@ -270,8 +305,8 @@ const AdminOrders = () => {
               className="w-4 h-4 rounded border-muted text-primary focus:ring-primary/20"
             />
             <span className="text-xs font-medium text-muted-foreground">
-              {selectedIds.length > 0 
-                ? `${selectedIds.length} pedidos seleccionados` 
+              {selectedIds.length > 0
+                ? `${selectedIds.length} pedidos seleccionados`
                 : 'Seleccionar todos los pedidos visibles'}
             </span>
           </div>
@@ -280,6 +315,11 @@ const AdminOrders = () => {
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Cargando...</div>
+      ) : isError ? (
+        <div className="text-center py-12 text-muted-foreground space-y-3">
+          <p className="flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4" /> No se pudieron cargar los pedidos.</p>
+          <button onClick={() => refetch()} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">Reintentar</button>
+        </div>
       ) : filtered.length === 0 ? (
         <p className="text-center py-12 text-muted-foreground">
           {search || statusFilter !== 'all' || sedeFilter !== 'all' ? 'No se encontraron pedidos con esos filtros.' : 'No hay pedidos aún.'}
@@ -289,6 +329,7 @@ const AdminOrders = () => {
           {filtered.map((o) => {
             const isExpanded = expandedId === o.id;
             const isSelected = selectedIds.includes(o.id);
+            const isDeleting = deletingId === o.id;
             return (
               <div key={o.id} className={`bg-card border rounded-2xl shadow-soft overflow-hidden transition-all ${isSelected ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
                 <div
@@ -309,7 +350,7 @@ const AdminOrders = () => {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[o.status]}`}>
                           {statusLabels[o.status]}
                         </span>
-                        <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full capitalize">{o.sede}</span>
+                        <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sedeName(o.sede)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                         <Clock className="w-3 h-3" /> {formatDate(o.created_at)} · {o.customer_phone}
@@ -336,7 +377,7 @@ const AdminOrders = () => {
                         <div className="mt-4 mb-4">
                           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Productos</p>
                           <div className="space-y-1.5">
-                            {Array.isArray(o.items) && (o.items as Array<{ name: string; quantity: number; price?: number }>).map((item, i) => (
+                            {orderItems(o).map((item, i) => (
                               <div key={i} className="flex justify-between text-sm">
                                 <span>{item.quantity}x {item.name}</span>
                                 {item.price && <span className="text-muted-foreground">{formatPrice(item.price * item.quantity)}</span>}
@@ -348,7 +389,7 @@ const AdminOrders = () => {
                         {o.notes && (
                           <div className="mb-4 p-3 bg-secondary/50 rounded-xl">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Notas</p>
-                            <p className="text-sm">{o.notes}</p>
+                            <p className="text-sm whitespace-pre-wrap">{o.notes}</p>
                           </div>
                         )}
 
@@ -358,8 +399,9 @@ const AdminOrders = () => {
                             <span className="text-xs font-medium text-muted-foreground">Estado:</span>
                             <select
                               value={o.status}
+                              disabled={updateStatus.isPending && updateStatus.variables?.id === o.id}
                               onChange={(e) => { e.stopPropagation(); updateStatus.mutate({ id: o.id, status: e.target.value as OrderStatus }); }}
-                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border-0 outline-none cursor-pointer ${statusColors[o.status]}`}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border-0 outline-none cursor-pointer disabled:opacity-60 ${statusColors[o.status]}`}
                             >
                               {Object.entries(statusLabels).map(([k, v]) => (
                                 <option key={k} value={k}>{v}</option>
@@ -367,26 +409,7 @@ const AdminOrders = () => {
                             </select>
                           </div>
                           <a
-                            href={(() => {
-                              const phone = o.customer_phone.replace(/\D/g, '');
-                              const fullPhone = phone.startsWith('57') ? phone : `57${phone}`;
-                              const items = Array.isArray(o.items)
-                                ? (o.items as Array<{ name: string; quantity: number; price?: number }>)
-                                    .map(i => `• ${i.quantity}x ${i.name}${i.price ? ` (${formatPrice(i.price * i.quantity)})` : ''}`)
-                                    .join('\n')
-                                : '';
-                              const msg = [
-                                `Hola ${o.customer_name} 👋, te escribimos de *Delicias Colombianas*.`,
-                                ``,
-                                `Te contactamos sobre tu pedido:`,
-                                items,
-                                ``,
-                                `*Total: ${formatPrice(o.total)}*`,
-                                `Estado actual: *${statusLabels[o.status]}*`,
-                                o.notes ? `\nNotas: ${o.notes}` : '',
-                              ].filter(s => s !== undefined && s !== null).join('\n');
-                              return `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
-                            })()}
+                            href={waUrlFor(o)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
@@ -401,10 +424,10 @@ const AdminOrders = () => {
                                 deleteOrder.mutate(o.id);
                               }
                             }}
-                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-destructive/10 text-destructive text-xs font-semibold hover:bg-destructive/20 transition-colors ml-auto"
-                            disabled={deleteOrder.isPending}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-destructive/10 text-destructive text-xs font-semibold hover:bg-destructive/20 transition-colors ml-auto disabled:opacity-60"
+                            disabled={isDeleting}
                           >
-                            {deleteOrder.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                             Borrar
                           </button>
                         </div>
@@ -420,6 +443,5 @@ const AdminOrders = () => {
     </div>
   );
 };
-
 
 export default AdminOrders;

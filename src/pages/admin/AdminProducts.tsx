@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,7 @@ const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
 const AdminProducts = () => {
+  usePageTitle('Productos');
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
@@ -155,6 +157,8 @@ const AdminProducts = () => {
       <AnimatePresence>
         {showForm && (
           <ProductForm
+            // Remonta el formulario al cambiar de producto: sin esto, editar B tras A guardaba A sobre B.
+            key={editing?.id ?? 'new'}
             product={editing}
             onSave={(p) => upsertMutation.mutate(p)}
             onClose={() => { setEditing(null); setCreating(false); }}
@@ -310,8 +314,8 @@ const ProductForm = ({
       const { url } = await uploadOptimizedImage({ file, preset: 'product', prefix: 'product' });
       setImageUrl(url);
       toast.success('Imagen subida correctamente');
-    } catch (err: any) {
-      toast.error(`Error al subir imagen: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Error al subir imagen: ${err instanceof Error ? err.message : 'inténtalo de nuevo'}`);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';

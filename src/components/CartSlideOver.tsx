@@ -1,11 +1,9 @@
+import { useEffect } from 'react';
 import { X, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { ThumbImage } from '@/components/ThumbImage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCartStore } from '@/store/cartStore';
-import { useSedes } from '@/hooks/useSedes';
+import { MAX_QTY, useCartStore } from '@/store/cartStore';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(price);
@@ -13,8 +11,26 @@ const formatPrice = (price: number) =>
 const CartSlideOver = () => {
   const { items, isOpen, setCartOpen, updateQuantity, removeItem, totalPrice } = useCartStore();
   const navigate = useNavigate();
-  const { tiendas } = useSedes();
-  const whatsappNum = tiendas[0]?.whatsapp || '573158924567';
+
+  // Escape cierra el panel y bloqueamos el scroll del body mientras está abierto.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCartOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, setCartOpen]);
+
+  const goToMenu = () => {
+    setCartOpen(false);
+    navigate('/menu');
+  };
 
   return (
     <AnimatePresence>
@@ -26,12 +42,16 @@ const CartSlideOver = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-foreground/30 backdrop-blur-sm"
             onClick={() => setCartOpen(false)}
+            aria-hidden="true"
           />
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tu pedido"
             className="fixed right-0 top-0 bottom-0 z-50 w-full sm:max-w-md max-w-[100vw] bg-card border-l shadow-elevated flex flex-col"
           >
             <div className="flex items-center justify-between p-5 border-b">
@@ -56,12 +76,15 @@ const CartSlideOver = () => {
                 </div>
                 <p className="font-medium text-foreground">Tu carrito está vacío</p>
                 <p className="text-sm mt-1.5">Explora nuestro menú y añade tus delicias favoritas.</p>
+                <button type="button" onClick={goToMenu} className="btn-primary mt-6">
+                  Ver menú
+                </button>
               </div>
             ) : (
               <>
-                <div 
-                  className="flex-1 overflow-y-auto p-4 space-y-2" 
-                  aria-live="polite" 
+                <div
+                  className="flex-1 overflow-y-auto p-4 space-y-2"
+                  aria-live="polite"
                   aria-atomic="true"
                 >
                   <AnimatePresence>
@@ -86,20 +109,27 @@ const CartSlideOver = () => {
                           <p className="text-primary font-bold text-sm">{formatPrice(item.product.price * item.quantity)}</p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                              aria-label={`Quitar una unidad de ${item.product.name}`}
                               className="w-7 h-7 flex items-center justify-center rounded-lg bg-secondary hover:bg-muted transition-colors"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="text-sm font-semibold w-6 text-center">{item.quantity}</span>
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-secondary hover:bg-muted transition-colors"
+                              disabled={item.quantity >= MAX_QTY}
+                              aria-label={`Añadir una unidad de ${item.product.name}`}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-secondary hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => removeItem(item.product.id)}
+                              aria-label={`Eliminar ${item.product.name} del carrito`}
                               className="ml-auto p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/5 rounded-lg transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />

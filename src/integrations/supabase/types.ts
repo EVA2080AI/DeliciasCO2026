@@ -232,43 +232,55 @@ export type Database = {
       }
       quotations: {
         Row: {
+          address: string | null
           company_name: string
           contact_name: string
           created_at: string
+          delivery_type: string | null
           email: string | null
           id: string
           items: Json
           nit: string | null
           notes: string | null
           phone: string
+          requested_date: string | null
+          sede: string | null
           status: Database["public"]["Enums"]["quote_status"]
           total: number
           updated_at: string
         }
         Insert: {
+          address?: string | null
           company_name: string
           contact_name: string
           created_at?: string
+          delivery_type?: string | null
           email?: string | null
           id?: string
           items?: Json
           nit?: string | null
           notes?: string | null
           phone: string
+          requested_date?: string | null
+          sede?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
           updated_at?: string
         }
         Update: {
+          address?: string | null
           company_name?: string
           contact_name?: string
           created_at?: string
+          delivery_type?: string | null
           email?: string | null
           id?: string
           items?: Json
           nit?: string | null
           notes?: string | null
           phone?: string
+          requested_date?: string | null
+          sede?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
           updated_at?: string
@@ -501,6 +513,7 @@ export const Constants = {
         "delicias",
         "bebidas",
         "combos",
+        "pies",
       ],
       quote_status: ["pending", "contacted", "approved", "rejected"],
     },

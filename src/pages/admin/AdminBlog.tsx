@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,7 +38,31 @@ const categoryOptions = [
 const formatDate = (d: string) =>
   new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 
+/** Slug URL-safe: minúsculas, sin acentos, guiones simples y sin guiones al inicio/final. */
+const generateSlug = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** El slug es la URL pública: dos artículos con el mismo slug se pisarían. */
+const assertSlugAvailable = async (slug: string, excludeId?: string) => {
+  let q = supabase.from('blog_posts').select('id').eq('slug', slug).limit(1);
+  if (excludeId) q = q.neq('id', excludeId);
+  const { data, error } = await q;
+  if (error) throw error;
+  if (data && data.length > 0) {
+    throw new Error(`Ya existe un artículo con el slug "${slug}". Cambia el slug para poder guardar.`);
+  }
+};
+
 const AdminBlog = () => {
+  usePageTitle('Blog');
   const qc = useQueryClient();
   const [editing, setEditing] = useState<BlogPost | null>(null);
   const [creating, setCreating] = useState(false);
@@ -59,11 +84,13 @@ const AdminBlog = () => {
 
   const upsertMutation = useMutation({
     mutationFn: async (post: Partial<BlogPost> & { id?: string }) => {
+      if (!post.slug || !post.title) throw new Error('Título y slug son requeridos');
+      await assertSlugAvailable(post.slug, post.id);
       if (post.id) {
         const { error } = await supabase.from('blog_posts').update(post).eq('id', post.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('blog_posts').insert(post as any);
+        const { error } = await supabase.from('blog_posts').insert({ ...post, slug: post.slug, title: post.title });
         if (error) throw error;
       }
     },
@@ -89,11 +116,11 @@ const AdminBlog = () => {
   });
 
   const togglePublish = useMutation({
-    mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
-      const { error } = await supabase
-        .from('blog_posts')
-        .update({ published, published_at: published ? new Date().toISOString() : null })
-        .eq('id', id);
+    mutationFn: async ({ id, published, publishedAt }: { id: string; published: boolean; publishedAt: string | null }) => {
+      // La fecha de publicación original se conserva: solo se fija la primera vez que se publica.
+      const patch: { published: boolean; published_at?: string } = { published };
+      if (published && !publishedAt) patch.published_at = new Date().toISOString();
+      const { error } = await supabase.from('blog_posts').update(patch).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -168,6 +195,8 @@ const AdminBlog = () => {
             className="overflow-hidden"
           >
             <BlogPostForm
+              // Remonta el formulario al cambiar de artículo: sin esto, editar B tras A guardaba A sobre B.
+              key={editing?.id ?? 'new'}
               post={editing}
               onSave={(p) => upsertMutation.mutate(p)}
               onClose={() => { setEditing(null); setCreating(false); }}
@@ -205,23 +234,28 @@ const AdminBlog = () => {
                     {post.published ? 'Publicado' : 'Borrador'}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{post.category} · {post.read_time} · {formatDate(post.created_at)}</p>
+                <p className="text-xs text-muted-foreground">{[post.category, post.read_time, formatDate(post.created_at)].filter(Boolean).join(' · ')}</p>
               </div>
               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                {post.published && (
+                {post.published ? (
                   <a
                     href={`/blog/${post.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 rounded-lg hover:bg-secondary transition-colors"
-                    title="Ver artículo"
+                    title="Ver artículo en el sitio"
                   >
                     <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   </a>
+                ) : (
+                  <span className="p-2 rounded-lg opacity-40 cursor-not-allowed" title="Los borradores no se ven en el sitio: publica el artículo para verlo">
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </span>
                 )}
                 <button
-                  onClick={() => togglePublish.mutate({ id: post.id, published: !post.published })}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                  onClick={() => togglePublish.mutate({ id: post.id, published: !post.published, publishedAt: post.published_at })}
+                  disabled={togglePublish.isPending && togglePublish.variables?.id === post.id}
+                  className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
                   title={post.published ? 'Despublicar' : 'Publicar'}
                 >
                   {post.published ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
@@ -273,9 +307,6 @@ const BlogPostForm = ({
 
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
 
-  const generateSlug = (text: string) =>
-    text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
-
   const handleTitleChange = (value: string) => {
     setTitle(value);
     if (!post) setSlug(generateSlug(value));
@@ -291,17 +322,19 @@ const BlogPostForm = ({
       const { url } = await uploadOptimizedImage({ file, preset: 'blog', prefix: 'blog' });
       setImageUrl(url);
       toast.success('Imagen subida correctamente');
-    } catch (err: any) { toast.error(`Error: ${err.message}`); }
+    } catch (err: unknown) { toast.error(`Error: ${err instanceof Error ? err.message : 'inténtalo de nuevo'}`); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !slug.trim()) { toast.error('Título y slug son requeridos'); return; }
+    const cleanSlug = generateSlug(slug);
+    if (!title.trim() || !cleanSlug) { toast.error('Título y slug son requeridos'); return; }
+    if (cleanSlug !== slug) setSlug(cleanSlug);
     onSave({
       ...(post?.id ? { id: post.id } : {}),
       title: title.trim(),
-      slug: slug.trim(),
+      slug: cleanSlug,
       excerpt: excerpt.trim(),
       content: content.trim(),
       category,
@@ -388,11 +421,15 @@ const BlogPostForm = ({
             <Switch id="blog-published" checked={published} onCheckedChange={setPublished} />
             <label htmlFor="blog-published" className="text-sm font-medium cursor-pointer">Publicado</label>
           </div>
-          {post?.slug && (
+          {post?.slug && post.published ? (
             <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
-              <ExternalLink className="w-3.5 h-3.5" /> Vista previa
+              <ExternalLink className="w-3.5 h-3.5" /> Ver en el sitio
             </a>
-          )}
+          ) : post?.slug ? (
+            <span className="text-xs text-muted-foreground flex items-center gap-1" title="Los borradores no se muestran en el sitio público">
+              <EyeOff className="w-3.5 h-3.5" /> Vista previa disponible al publicar
+            </span>
+          ) : null}
         </div>
 
         <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={saving} className="w-full py-3 rounded-xl bg-gradient-gold font-semibold text-primary-foreground shadow-gold disabled:opacity-50">

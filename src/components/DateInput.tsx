@@ -6,6 +6,7 @@
  * - El placeholder span solapaba con el "dd/mm/yyyy" nativo del browser
  * - Solución: ocultamos el ícono nativo con CSS, usamos solo el ícono de diseño
  */
+import { useId } from 'react';
 import { CalendarDays } from 'lucide-react';
 
 interface DateInputProps {
@@ -31,7 +32,9 @@ const DateInput = ({
   className = '',
   id,
 }: DateInputProps) => {
-  const inputId = id || `date-${Math.random().toString(36).slice(2, 7)}`;
+  // useId es estable entre renders (Math.random generaba un id distinto en cada render → label huérfano).
+  const autoId = useId();
+  const inputId = id || `date-${autoId}`;
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>

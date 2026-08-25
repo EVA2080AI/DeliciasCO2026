@@ -1,14 +1,20 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Home, ArrowLeft } from 'lucide-react';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const NotFound = () => {
-  const location = useLocation();
+  usePageTitle('Página no encontrada');
 
+  // Evitar que los buscadores indexen rutas inexistentes (SPA: el servidor responde 200).
   useEffect(() => {
-    console.error('404 Error: User attempted to access non-existent route:', location.pathname);
-  }, [location.pathname]);
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex';
+    document.head.appendChild(meta);
+    return () => { meta.remove(); };
+  }, []);
 
   return (
     <section className="w-full bg-section-warm min-h-[70vh] flex items-center justify-center">

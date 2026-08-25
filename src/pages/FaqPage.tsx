@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { ChevronDown, Search, Package, UtensilsCrossed, Building2, MapPin } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronDown, Search, Package, UtensilsCrossed, Building2, MapPin, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { usePageSectionsMap } from '@/hooks/usePageSections';
+import { useSedes, DEFAULT_WHATSAPP } from '@/hooks/useSedes';
+import { buildWaUrl } from '@/lib/whatsapp';
+import { normalizeFaqItems, type FaqItem as FaqItemData } from '@/lib/cmsGuards';
 
 const iconMap: Record<string, typeof Package> = {
   pedidos: Package,
@@ -13,7 +15,9 @@ const iconMap: Record<string, typeof Package> = {
   sedes_horarios: MapPin,
 };
 
-const defaultFaqs = [
+type FaqCategory = { key: string; category: string; icon: typeof Package; items: FaqItemData[] };
+
+const defaultFaqs: FaqCategory[] = [
   {
     key: 'pedidos',
     category: 'Pedidos y Envíos',
@@ -88,44 +92,61 @@ const FaqItem = ({ q, a }: { q: string; a: string }) => {
   );
 };
 
+const JSONLD_ID = 'faq-jsonld';
+
 const FaqPage = () => {
   usePageTitle('Preguntas Frecuentes');
   const [search, setSearch] = useState('');
   const { sections: s } = usePageSectionsMap('faq');
+  const { tiendas } = useSedes();
 
-  // Leer FAQs dinámicamente del CMS, con fallback a defaults
-  const faqs = useMemo(() => {
-    return defaultFaqs.map(def => {
+  // FAQs desde el CMS con fallback a defaults. Una categoría desactivada en el panel se OCULTA
+  // (antes volvía a los textos por defecto). Los items se normalizan: q/a o question/answer.
+  const faqs = useMemo<FaqCategory[]>(() => {
+    return defaultFaqs.flatMap((def) => {
       const section = s[def.key];
-      if (!section || section.active === false) return def;
-
-      try {
-        const meta = typeof section.metadata === 'string' ? JSON.parse(section.metadata) : section.metadata;
-        if (meta?.items && Array.isArray(meta.items) && meta.items.length > 0) {
-          return {
-            ...def,
-            category: section.title || def.category,
-            icon: iconMap[def.key] || def.icon,
-            items: meta.items,
-          };
-        }
-      } catch { /* fall through */ }
-
-      return {
+      if (!section) return [def];
+      if (section.active === false) return [];
+      const items = normalizeFaqItems(section.metadata);
+      return [{
         ...def,
         category: section.title || def.category,
-      };
+        icon: iconMap[def.key] || def.icon,
+        items: items.length > 0 ? items : def.items,
+      }];
     });
   }, [s]);
 
-  const filteredFaqs = faqs.map((section) => ({
-    ...section,
-    items: section.items.filter(
-      (f) =>
-        f.q.toLowerCase().includes(search.toLowerCase()) ||
-        f.a.toLowerCase().includes(search.toLowerCase())
-    ),
-  })).filter((section) => section.items.length > 0);
+  // Datos estructurados FAQPage para buscadores (se retira al salir de la página).
+  useEffect(() => {
+    const entities = faqs.flatMap((section) =>
+      section.items.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    );
+    if (entities.length === 0) return;
+    document.getElementById(JSONLD_ID)?.remove();
+    const script = document.createElement('script');
+    script.id = JSONLD_ID;
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: entities });
+    document.head.appendChild(script);
+    return () => { script.remove(); };
+  }, [faqs]);
+
+  const term = search.trim().toLowerCase();
+  const filteredFaqs = faqs
+    .map((section) => ({
+      ...section,
+      items: term
+        ? section.items.filter((f) => f.q.toLowerCase().includes(term) || f.a.toLowerCase().includes(term))
+        : section.items,
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const waUrl = buildWaUrl(tiendas[0]?.whatsapp || DEFAULT_WHATSAPP, 'Hola, tengo una pregunta');
 
   return (
     <>
@@ -145,7 +166,8 @@ const FaqPage = () => {
             <div className="max-w-md mx-auto relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
-                type="text"
+                type="search"
+                aria-label="Buscar pregunta"
                 placeholder="Buscar pregunta..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -160,20 +182,20 @@ const FaqPage = () => {
       <section className="w-full py-12 bg-background">
         <div className="max-w-2xl mx-auto px-6">
           <div className="space-y-8">
-            {filteredFaqs.map((section) => {
+            {filteredFaqs.map((section, si) => {
               const Icon = section.icon;
               return (
-                <FadeInWhenVisible key={section.category}>
+                <FadeInWhenVisible key={`${section.key}-${si}`}>
                   <div>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-4.5 h-4.5 text-primary" />
+                        <Icon className="w-[18px] h-[18px] text-primary" />
                       </div>
                       <h2 className="font-display text-xl">{section.category}</h2>
                     </div>
                     <div className="bg-section-cream rounded-2xl px-6">
-                      {section.items.map((f) => (
-                        <FaqItem key={f.q} q={f.q} a={f.a} />
+                      {section.items.map((f, i) => (
+                        <FaqItem key={`${f.q}-${i}`} q={f.q} a={f.a} />
                       ))}
                     </div>
                   </div>
@@ -183,12 +205,16 @@ const FaqPage = () => {
           </div>
 
           {filteredFaqs.length === 0 && (
-            <p className="text-center text-muted-foreground py-16 text-sm">No se encontraron resultados para "{search}"</p>
+            <p className="text-center text-muted-foreground py-16 text-sm">
+              {term ? `No se encontraron resultados para "${search}"` : 'Pronto publicaremos las preguntas frecuentes.'}
+            </p>
           )}
 
           <FadeInWhenVisible className="mt-16 text-center">
             <p className="text-muted-foreground text-sm mb-4">¿No encontraste lo que buscabas?</p>
-            <Link to="/sedes" className="btn-primary">Contáctanos por WhatsApp</Link>
+            <a href={waUrl} target="_blank" rel="noopener noreferrer" className="btn-primary gap-2">
+              <MessageCircle className="w-4 h-4" /> Contáctanos por WhatsApp
+            </a>
           </FadeInWhenVisible>
         </div>
       </section>

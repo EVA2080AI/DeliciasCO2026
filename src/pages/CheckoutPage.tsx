@@ -1,28 +1,38 @@
-import { useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { ThumbImage } from '@/components/ThumbImage';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useCartStore } from '@/store/cartStore';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, CheckCircle, MapPin, Store, Building2 } from 'lucide-react';
+import { repriceItems, useCartStore } from '@/store/cartStore';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Send, CheckCircle, MapPin, Store, Building2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useSedes } from '@/hooks/useSedes';
+import { DEFAULT_WHATSAPP, useSedes } from '@/hooks/useSedes';
+import { useProducts } from '@/hooks/useProducts';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DateInput from '@/components/DateInput';
+import { buildWaUrl, openWhatsAppAfter } from '@/lib/whatsapp';
+import { localISODate } from '@/lib/dates';
+import { ADDRESS_MAX, NOTES_MAX, minDateOffset, validateCheckout, type DeliveryType } from '@/lib/checkoutValidation';
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(price);
 
-type DeliveryType = 'pickup' | 'delivery';
+const inputClass = 'w-full px-4 py-3.5 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all';
+
+const optionClass = (active: boolean) =>
+  `relative flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 ${
+    active ? 'text-primary-foreground' : 'bg-background hover:bg-secondary text-foreground'
+  }`;
 
 const CheckoutPage = () => {
   usePageTitle('Checkout');
-  const { items, totalPrice, clearCart } = useCartStore();
-  const navigate = useNavigate();
+  const { items, clearCart } = useCartStore();
   const { tiendas } = useSedes();
+  const { data: products, isLoading: productsLoading, isError: productsError } = useProducts();
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
@@ -34,14 +44,23 @@ const CheckoutPage = () => {
   const [addressDetail, setAddressDetail] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [notes, setNotes] = useState('');
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
+  const [waLink, setWaLink] = useState<{ url: string; opened: boolean } | null>(null);
 
-  // Auto-select first sede when loaded
-  const activeSede = sedeId || (tiendas.length > 0 ? tiendas[0].id : '');
-  const selectedSede = tiendas.find((s) => s.id === activeSede);
+  // Sede: selección explícita (sin default silencioso a la primera tienda).
+  const selectedSede = tiendas.find((s) => s.id === sedeId);
+  const noSedes = tiendas.length === 0;
 
-  const requiresAdvanceNotice = items.some((i) => i.product.requiresAdvanceNotice);
+  // Re-precio contra el catálogo vigente: el carrito persistido puede traer precios viejos.
+  const repriced = useMemo(() => repriceItems(items, products), [items, products]);
+  const orderItems = repriced.items;
+  const orderTotal = repriced.total;
+
+  const requiresAdvanceNotice = orderItems.some((i) => i.product.requiresAdvanceNotice);
+  const minDate = localISODate(minDateOffset(requiresAdvanceNotice));
+  const canSubmit = !submitting && !noSedes && !productsLoading && orderItems.length > 0;
 
   if (items.length === 0 && !orderSent) {
     return (
@@ -68,7 +87,32 @@ const CheckoutPage = () => {
               <CheckCircle className="w-10 h-10 text-primary" />
             </motion.div>
             <h1 className="font-display text-3xl mb-3">¡Pedido enviado!</h1>
-            <p className="text-muted-foreground mb-2">Tu pedido ha sido registrado y se abrió WhatsApp para confirmar con la sede.</p>
+            <p className="text-muted-foreground mb-2">
+              {waLink?.opened
+                ? 'Tu pedido quedó registrado y se abrió WhatsApp para confirmarlo con la sede.'
+                : 'Tu pedido quedó registrado.'}
+            </p>
+
+            {waLink && !waLink.opened && (
+              <div className="my-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-sm text-left" role="alert">
+                <p className="mb-3 font-medium text-amber-700 dark:text-amber-400">
+                  Tu navegador bloqueó la ventana de WhatsApp. Ábrela aquí para enviar tu pedido a la sede:
+                </p>
+                <a href={waLink.url} target="_blank" rel="noopener noreferrer" className="btn-primary inline-flex">
+                  <MessageCircle className="w-4 h-4" /> Abrir WhatsApp
+                </a>
+              </div>
+            )}
+
+            {waLink?.opened && (
+              <p className="text-sm text-muted-foreground mb-2">
+                ¿No se abrió WhatsApp?{' '}
+                <a href={waLink.url} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                  Abrir de nuevo
+                </a>
+              </p>
+            )}
+
             <p className="text-sm text-muted-foreground mb-8">Te contactaremos pronto para confirmar tu pedido.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/menu" className="btn-primary">Seguir comprando</Link>
@@ -80,65 +124,110 @@ const CheckoutPage = () => {
     );
   }
 
-  const handleWhatsApp = async () => {
-    if (!name.trim()) { toast.error('Ingresa tu nombre.'); return; }
-    if (!phone.trim() || phone.trim().length < 7) { toast.error('Ingresa un teléfono válido.'); return; }
-    if (deliveryType === 'pickup' && !pickupTime.trim()) { toast.error('Selecciona la hora de recogida.'); return; }
-    if (deliveryType === 'delivery' && !address.trim()) { toast.error('Ingresa tu dirección de entrega.'); return; }
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submitting) return;
 
-    setSubmitting(true);
-
-    const sedeName = selectedSede?.name || activeSede;
-    const deliveryInfo = deliveryType === 'pickup'
-      ? `Recoge en: ${sedeName}\nHora: ${pickupTime}`
-      : `Envío a: ${address.trim()}${addressDetail.trim() ? ` (${addressDetail.trim()})` : ''}${neighborhood.trim() ? ` — Barrio: ${neighborhood.trim()}` : ''}\n(Despacha: ${sedeName})`;
-
-    const { error } = await supabase.from('orders').insert({
-      customer_name: name.trim(),
-      customer_phone: phone.trim(),
-      sede: activeSede,
-      notes: [
-        `FECHA PEDIDO: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}`,
-        requestedDate ? `FECHA DESEADA: ${requestedDate}` : '',
-        company.trim() ? `EMPRESA: ${company.trim()}` : '',
-        deliveryType === 'delivery' ? `ENVÍO: ${address.trim()} ${addressDetail.trim()} ${neighborhood.trim()} (Sede que despacha: ${sedeName})` : `RECOGE: ${activeSede} a las ${pickupTime}`,
-        notes.trim(),
-      ].filter(Boolean).join(' | ') || null,
-      items: items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
-      total: totalPrice(),
+    const validationError = validateCheckout({
+      name,
+      phone,
+      deliveryType,
+      sedeId,
+      hasSedes: !noSedes,
+      pickupTime,
+      address,
+      neighborhood,
+      requestedDate,
+      requiresAdvanceNotice,
+      notes,
+      acceptedPolicy,
+      itemCount: orderItems.length,
     });
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
 
-    if (error) { toast.error('Error al guardar el pedido. Intenta de nuevo.'); setSubmitting(false); return; }
+    const sedeName = selectedSede?.name ?? sedeId;
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim();
+    const cleanCompany = company.trim();
+    const cleanAddress = address.trim();
+    const cleanDetail = addressDetail.trim();
+    const cleanNeighborhood = neighborhood.trim();
+    const cleanNotes = notes.trim().slice(0, NOTES_MAX);
+    const cleanDate = requestedDate.trim();
+    const cleanTime = pickupTime.trim();
 
-    const orderText = items
+    const deliveryInfo =
+      deliveryType === 'pickup'
+        ? `Recoge en: ${sedeName}\nHora: ${cleanTime}`
+        : `Envío a: ${cleanAddress}${cleanDetail ? ` (${cleanDetail})` : ''}${cleanNeighborhood ? ` — Barrio: ${cleanNeighborhood}` : ''}\n(Despacha: ${sedeName})`;
+
+    const notesField =
+      [
+        `FECHA PEDIDO: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`,
+        cleanDate ? `FECHA DESEADA: ${cleanDate}` : '',
+        cleanCompany ? `EMPRESA: ${cleanCompany}` : '',
+        deliveryType === 'delivery'
+          ? `ENVÍO: ${[cleanAddress, cleanDetail, cleanNeighborhood].filter(Boolean).join(' ')} (Despacha: ${sedeName})`
+          : `RECOGE EN: ${sedeName} a las ${cleanTime}`,
+        cleanNotes,
+      ]
+        .filter(Boolean)
+        .join(' | ') || null;
+
+    const orderText = orderItems
       .map((i) => `- ${i.quantity}x ${i.product.name} - ${formatPrice(i.product.price * i.quantity)}`)
       .join('\n');
     const orderDate = format(new Date(), "EEEE d 'de' MMMM, h:mm a", { locale: es });
-    const msg = [
+    const message = [
       `*Pedido Delicias Colombianas - Arbey Cabrera*`,
       `- Fecha pedido: ${orderDate}`,
-      requestedDate ? `- Fecha deseada: ${requestedDate}` : '',
+      cleanDate ? `- Fecha deseada: ${cleanDate}` : '',
       '',
-      `- Cliente: ${name.trim()}`,
-      `- Tel: ${phone.trim()}`,
-      company.trim() ? `- Empresa: ${company.trim()}` : '',
+      `- Cliente: ${cleanName}`,
+      `- Tel: ${cleanPhone}`,
+      cleanCompany ? `- Empresa: ${cleanCompany}` : '',
       `- ${deliveryInfo}`,
-      notes.trim() ? `- Notas: ${notes.trim()}` : '',
+      cleanNotes ? `- Notas: ${cleanNotes}` : '',
       '',
       `*Detalle:*`,
       orderText,
       '',
-      `*Total: ${formatPrice(totalPrice())}*`,
-    ].filter(s => s !== undefined && s !== null && (typeof s === 'string' ? s !== '' : true)).join('\n');
+      `*Total: ${formatPrice(orderTotal)}*`,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
-    const whatsappNum = selectedSede ? selectedSede.whatsapp : (tiendas[0]?.whatsapp || '');
-    window.open(`https://wa.me/${whatsappNum}?text=${encodeURIComponent(msg)}`, '_blank');
-    clearCart();
-    setSubmitting(false);
-    setOrderSent(true);
+    const waUrl = buildWaUrl(selectedSede?.whatsapp || DEFAULT_WHATSAPP, message);
+
+    const insertOrder = async () => {
+      const { error } = await supabase.from('orders').insert({
+        customer_name: cleanName,
+        customer_phone: cleanPhone,
+        sede: sedeId,
+        notes: notesField,
+        items: orderItems.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
+        total: orderTotal,
+      });
+      if (error) throw error;
+    };
+
+    setSubmitting(true);
+    try {
+      // La pestaña se abre de forma síncrona dentro del clic; el insert ocurre después → sin popup bloqueado.
+      const { opened, url } = await openWhatsAppAfter(insertOrder, () => waUrl);
+      setWaLink({ url, opened });
+      setOrderSent(true);
+      clearCart();
+      if (!opened) toast.warning('Tu navegador bloqueó WhatsApp. Usa el botón "Abrir WhatsApp".');
+    } catch {
+      toast.error('Error al guardar el pedido. Intenta de nuevo.');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  const inputClass = "w-full px-4 py-3.5 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all";
 
   return (
     <>
@@ -160,64 +249,147 @@ const CheckoutPage = () => {
           <FadeInWhenVisible delay={0.1}>
             <div className="bg-card border rounded-2xl p-7 mb-6 shadow-soft">
               <h2 className="font-display text-lg mb-5">Resumen del pedido</h2>
-              <div className="space-y-3 mb-5">
-                {items.map((i) => (
-                  <div key={i.product.id} className="flex justify-between text-sm items-center">
-                    <div className="flex items-center gap-3">
-                      <ThumbImage src={i.product.image} alt={i.product.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover" />
-                      <span>{i.quantity}x {i.product.name}</span>
+
+              {repriced.unavailable.length > 0 && (
+                <div className="mb-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive space-y-1" role="alert">
+                  {repriced.unavailable.map((u) => (
+                    <p key={u.product.id} className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <span>“{u.product.name}” ya no está disponible y se quitó del pedido.</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {repriced.priceChanges.length > 0 && (
+                <div className="mb-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm text-amber-700 dark:text-amber-400 space-y-1">
+                  {repriced.priceChanges.map((c) => (
+                    <p key={c.name}>
+                      El precio de “{c.name}” cambió de {formatPrice(c.oldPrice)} a {formatPrice(c.newPrice)}.
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {productsError && (
+                <p className="mb-4 text-xs text-muted-foreground">
+                  No pudimos verificar los precios actuales; se usarán los guardados en tu carrito.
+                </p>
+              )}
+
+              {orderItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">
+                  Ninguno de los productos de tu carrito está disponible. <Link to="/menu" className="text-primary underline">Ver el menú</Link>
+                </p>
+              ) : (
+                <div className="space-y-3 mb-5">
+                  {orderItems.map((i) => (
+                    <div key={i.product.id} className="flex justify-between text-sm items-center">
+                      <div className="flex items-center gap-3">
+                        <ThumbImage src={i.product.image} alt={i.product.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover" />
+                        <span>{i.quantity}x {i.product.name}</span>
+                      </div>
+                      <span className="font-medium">{formatPrice(i.product.price * i.quantity)}</span>
                     </div>
-                    <span className="font-medium">{formatPrice(i.product.price * i.quantity)}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
               <div className="border-t pt-4 flex justify-between items-center">
                 <span className="text-muted-foreground font-medium">Total</span>
-                <span className="text-2xl font-display font-bold text-primary">{formatPrice(totalPrice())}</span>
+                <span className="text-2xl font-display font-bold text-primary">{formatPrice(orderTotal)}</span>
               </div>
             </div>
           </FadeInWhenVisible>
 
           {/* Form */}
           <FadeInWhenVisible delay={0.2}>
-            <div className="bg-card border rounded-2xl p-7 shadow-soft space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="bg-card border rounded-2xl p-7 shadow-soft space-y-5">
               <h2 className="font-display text-lg">Tus datos</h2>
+
+              {noSedes && (
+                <div role="alert" className="p-3.5 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <p>En este momento no hay sedes disponibles para recibir pedidos. Inténtalo más tarde o escríbenos por WhatsApp.</p>
+                </div>
+              )}
+
               <div className="grid sm:grid-cols-2 gap-4">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre completo *" className={inputClass} />
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono / WhatsApp *" type="tel" className={inputClass} />
+                <div>
+                  <label htmlFor="co-name" className="sr-only">Nombre completo</label>
+                  <input
+                    id="co-name"
+                    name="name"
+                    autoComplete="name"
+                    required
+                    maxLength={120}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre completo *"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="co-phone" className="sr-only">Teléfono / WhatsApp</label>
+                  <input
+                    id="co-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    required
+                    maxLength={25}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Teléfono / WhatsApp *"
+                    className={inputClass}
+                  />
+                </div>
                 <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                  <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Empresa / Razón Social" className={`${inputClass} pl-11`} />
+                  <label htmlFor="co-company" className="sr-only">Empresa / Razón Social</label>
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+                  <input
+                    id="co-company"
+                    name="organization"
+                    autoComplete="organization"
+                    maxLength={120}
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="Empresa / Razón Social"
+                    className={`${inputClass} pl-11`}
+                  />
                 </div>
                 <DateInput
+                  id="co-date"
                   value={requestedDate}
                   onChange={setRequestedDate}
-                  placeholder="Fecha deseada de entrega o recogida"
-                  min={requiresAdvanceNotice ? new Date(Date.now() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                  placeholder={requiresAdvanceNotice ? 'Fecha de entrega o recogida *' : 'Fecha deseada de entrega o recogida'}
+                  min={minDate}
+                  required={requiresAdvanceNotice}
                 />
                 {requiresAdvanceNotice && (
                   <div className="sm:col-span-2 p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400 text-sm font-medium flex items-start gap-2.5">
-                    <span className="text-lg">⚠️</span>
-                    <p>Tu pedido contiene productos que requieren 24h de preparación. La fecha más pronta de entrega es a partir de mañana.</p>
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+                    <p>Tu pedido contiene productos que requieren 24h de preparación. Selecciona una fecha a partir de mañana.</p>
                   </div>
                 )}
               </div>
 
-              {/* Sede selector (Global) */}
-              <div>
-                <label className="text-sm font-medium mb-2.5 block text-muted-foreground">
+              {/* Sede selector */}
+              <fieldset>
+                <legend className="text-sm font-medium mb-2.5 block text-muted-foreground">
                   {deliveryType === 'pickup' ? 'Sede de recogida *' : 'Sede que despachará tu pedido *'}
-                </label>
+                </legend>
                 <div className="flex gap-3">
                   {tiendas.map((s) => (
                     <button
                       key={s.id}
+                      type="button"
                       onClick={() => setSedeId(s.id)}
-                      className={`relative flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 ${
-                        activeSede === s.id ? 'text-primary-foreground' : 'bg-background hover:bg-secondary text-foreground'
-                      }`}
+                      aria-pressed={sedeId === s.id}
+                      className={optionClass(sedeId === s.id)}
                     >
-                      {activeSede === s.id && (
+                      {sedeId === s.id && (
                         <motion.div
                           layoutId="activeSede"
                           className="absolute inset-0 bg-primary rounded-xl"
@@ -231,11 +403,11 @@ const CheckoutPage = () => {
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               {/* Delivery type selector */}
-              <div>
-                <label className="text-sm font-medium mb-2.5 block text-muted-foreground">¿Cómo deseas recibir tu pedido?</label>
+              <fieldset>
+                <legend className="text-sm font-medium mb-2.5 block text-muted-foreground">¿Cómo deseas recibir tu pedido?</legend>
                 <div className="flex gap-3">
                   {[
                     { id: 'pickup' as DeliveryType, label: 'Recoger en sede', icon: Store },
@@ -243,10 +415,10 @@ const CheckoutPage = () => {
                   ].map((opt) => (
                     <button
                       key={opt.id}
+                      type="button"
                       onClick={() => setDeliveryType(opt.id)}
-                      className={`relative flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 ${
-                        deliveryType === opt.id ? 'text-primary-foreground' : 'bg-background hover:bg-secondary text-foreground'
-                      }`}
+                      aria-pressed={deliveryType === opt.id}
+                      className={optionClass(deliveryType === opt.id)}
                     >
                       {deliveryType === opt.id && (
                         <motion.div
@@ -262,9 +434,8 @@ const CheckoutPage = () => {
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
-              {/* Conditional: Pickup fields */}
               <AnimatePresence mode="wait">
                 {deliveryType === 'pickup' && (
                   <motion.div
@@ -275,11 +446,13 @@ const CheckoutPage = () => {
                     transition={{ duration: 0.25 }}
                     className="space-y-4 overflow-hidden"
                   >
-
                     <div>
-                      <label className="text-sm font-medium mb-2.5 block text-muted-foreground">Hora aproximada de recogida *</label>
+                      <label htmlFor="co-time" className="text-sm font-medium mb-2.5 block text-muted-foreground">Hora aproximada de recogida *</label>
                       <input
+                        id="co-time"
+                        name="pickupTime"
                         type="time"
+                        required
                         value={pickupTime}
                         onChange={(e) => setPickupTime(e.target.value)}
                         className={inputClass}
@@ -288,7 +461,6 @@ const CheckoutPage = () => {
                   </motion.div>
                 )}
 
-                {/* Conditional: Delivery fields */}
                 {deliveryType === 'delivery' && (
                   <motion.div
                     key="delivery"
@@ -298,45 +470,93 @@ const CheckoutPage = () => {
                     transition={{ duration: 0.25 }}
                     className="space-y-4 overflow-hidden"
                   >
-                    <input
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Dirección de entrega *  (Ej: Cra 7 #45-12)"
-                      className={inputClass}
-                    />
-                    <input
-                      value={addressDetail}
-                      onChange={(e) => setAddressDetail(e.target.value)}
-                      placeholder="Interior / Bloque / Oficina / Apto"
-                      className={inputClass}
-                    />
-                    <input
-                      value={neighborhood}
-                      onChange={(e) => setNeighborhood(e.target.value)}
-                      placeholder="Barrio"
-                      className={inputClass}
-                    />
+                    <div>
+                      <label htmlFor="co-address" className="sr-only">Dirección de entrega</label>
+                      <input
+                        id="co-address"
+                        name="address"
+                        autoComplete="street-address"
+                        required
+                        maxLength={ADDRESS_MAX}
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Dirección de entrega *  (Ej: Cra 7 #45-12)"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="co-address-detail" className="sr-only">Interior / Bloque / Oficina / Apto</label>
+                      <input
+                        id="co-address-detail"
+                        name="addressDetail"
+                        autoComplete="address-line2"
+                        maxLength={120}
+                        value={addressDetail}
+                        onChange={(e) => setAddressDetail(e.target.value)}
+                        placeholder="Interior / Bloque / Oficina / Apto"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="co-neighborhood" className="sr-only">Barrio</label>
+                      <input
+                        id="co-neighborhood"
+                        name="neighborhood"
+                        required
+                        maxLength={80}
+                        value={neighborhood}
+                        onChange={(e) => setNeighborhood(e.target.value)}
+                        placeholder="Barrio *"
+                        className={inputClass}
+                      />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notas adicionales para tu pedido"
-                rows={3}
-                className={`${inputClass} resize-none`}
-              />
+              <div>
+                <label htmlFor="co-notes" className="sr-only">Notas adicionales para tu pedido</label>
+                <textarea
+                  id="co-notes"
+                  name="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notas adicionales para tu pedido"
+                  rows={3}
+                  maxLength={NOTES_MAX}
+                  className={`${inputClass} resize-none`}
+                />
+                <p className="text-right text-[11px] text-muted-foreground mt-1">{notes.length}/{NOTES_MAX}</p>
+              </div>
+
+              <label htmlFor="co-policy" className="flex items-start gap-3 text-sm cursor-pointer select-none">
+                <input
+                  id="co-policy"
+                  name="acceptPolicy"
+                  type="checkbox"
+                  required
+                  checked={acceptedPolicy}
+                  onChange={(e) => setAcceptedPolicy(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+                />
+                <span className="text-muted-foreground">
+                  Acepto la{' '}
+                  <Link to="/politica-de-datos" target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                    política de tratamiento de datos
+                  </Link>{' '}
+                  *
+                </span>
+              </label>
 
               <motion.button
+                type="submit"
                 whileTap={{ scale: 0.97 }}
-                onClick={handleWhatsApp}
-                disabled={submitting}
-                className="w-full py-4 rounded-xl bg-gradient-gold font-semibold text-primary-foreground shadow-gold hover:shadow-elevated transition-all duration-300 inline-flex items-center justify-center gap-2.5 disabled:opacity-50"
+                disabled={!canSubmit}
+                className="w-full py-4 rounded-xl bg-gradient-gold font-semibold text-primary-foreground shadow-gold hover:shadow-elevated transition-all duration-300 inline-flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" aria-hidden="true" />
                     Enviando...
                   </span>
                 ) : (
@@ -345,7 +565,7 @@ const CheckoutPage = () => {
                   </>
                 )}
               </motion.button>
-            </div>
+            </form>
           </FadeInWhenVisible>
         </div>
       </section>

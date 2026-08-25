@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Mail, Key, Plus, Trash2, Loader2, UserPlus, Lock, Send, Eye, EyeOff } from 'lucide-react';
+import { Shield, Mail, Key, Plus, Trash2, Loader2, UserPlus, Lock, Send, Eye, EyeOff, AlertTriangle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { FadeInWhenVisible } from '@/components/ScrollAnimations';
@@ -15,7 +16,18 @@ type AdminUserRow = {
   email?: string;
 };
 
+/**
+ * Las RPC `list_admin_users` / `create_admin_from_cms` viven en la migración de QA y aún no están
+ * en los tipos generados: wrapper tipado localmente para no depender de `as any`.
+ */
+type RpcResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
+const rpc = <T,>(fn: string, args?: Record<string, unknown>): RpcResult<T> =>
+  (supabase.rpc as unknown as (fn: string, args?: Record<string, unknown>) => RpcResult<T>)(fn, args);
+
+const errMsg = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
+
 const AdminUsers = () => {
+  usePageTitle('Usuarios');
   const qc = useQueryClient();
   const { user } = useAuth();
   const [email, setEmail] = useState('');
@@ -25,12 +37,12 @@ const AdminUsers = () => {
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   // List all admin users via Security Definer RPC (bypasses RLS recursion)
-  const { data: adminUsers, isLoading } = useAdminQuery({
+  const { data: adminUsers, isLoading, isError, error, refetch, isFetching } = useAdminQuery({
     queryKey: ['admin-user-roles'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('list_admin_users' as any);
-      if (error) throw error;
-      return data as AdminUserRow[];
+      const { data, error } = await rpc<AdminUserRow[]>('list_admin_users');
+      if (error) throw new Error(error.message);
+      return data ?? [];
     },
   });
 
@@ -44,14 +56,14 @@ const AdminUsers = () => {
 
     setLoadingCreate(true);
     try {
-      const { data, error } = await supabase.rpc('create_admin_from_cms' as any, {
+      const { data, error } = await rpc<string>('create_admin_from_cms', {
         admin_email: email.trim().toLowerCase(),
         admin_password: password,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      const result = data as string;
+      const result = String(data ?? '');
       if (result.startsWith('ERROR:')) {
         toast.error(result.replace('ERROR: ', ''));
         return;
@@ -61,8 +73,8 @@ const AdminUsers = () => {
       setEmail('');
       setPassword('');
       qc.invalidateQueries({ queryKey: ['admin-user-roles'] });
-    } catch (err: any) {
-      toast.error(err.message || 'No se pudo crear el usuario. Intenta de nuevo.');
+    } catch (err: unknown) {
+      toast.error(errMsg(err, 'No se pudo crear el usuario. Intenta de nuevo.'));
     } finally {
       setLoadingCreate(false);
     }
@@ -82,25 +94,25 @@ const AdminUsers = () => {
       if (error) throw error;
       toast.success('Permisos revocados correctamente.');
       qc.invalidateQueries({ queryKey: ['admin-user-roles'] });
-    } catch (err: any) {
-      toast.error('Error al revocar permisos: ' + (err.message || 'Inténtalo de nuevo.'));
+    } catch (err: unknown) {
+      toast.error('Error al revocar permisos: ' + errMsg(err, 'Inténtalo de nuevo.'));
     } finally {
       setRevokingId(null);
     }
   };
 
-  // Send password reset email
+  // Send password reset email (el enlace abre /admin/reset-password, que establece la sesión de recuperación)
   const handleResetPassword = async (targetEmail: string) => {
     if (!targetEmail) return;
     if (!confirm(`¿Enviar enlace de restablecimiento de contraseña a "${targetEmail}"?`)) return;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-        redirectTo: `${window.location.origin}/admin/login`,
+        redirectTo: `${window.location.origin}/admin/reset-password`,
       });
       if (error) throw error;
       toast.success(`Correo de restablecimiento enviado a ${targetEmail}.`);
-    } catch (err: any) {
-      toast.error('Error al enviar correo: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Error al enviar correo: ' + errMsg(err, 'Inténtalo de nuevo.'));
     }
   };
 
@@ -231,13 +243,29 @@ const AdminUsers = () => {
             <div className="p-6 border-b flex items-center justify-between">
               <h3 className="font-display font-bold text-lg">Otros Administradores</h3>
               <span className="px-3 py-1 bg-secondary text-foreground text-xs font-bold rounded-full">
-                {isLoading ? '…' : otherAdmins.length}
+                {isLoading || isError ? '…' : otherAdmins.length}
               </span>
             </div>
 
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : isError ? (
+              <div className="py-12 px-6 text-center">
+                <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+                <p className="font-semibold text-foreground">No se pudo cargar la lista de administradores</p>
+                <p className="text-sm text-muted-foreground mt-1 break-words">{errMsg(error, 'Error desconocido')}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Si el mensaje menciona <code>list_admin_users</code>, falta aplicar la migración de la base de datos.
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary text-sm font-semibold hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Reintentar
+                </button>
               </div>
             ) : otherAdmins.length === 0 ? (
               <div className="text-center py-16 text-muted-foreground px-4">
