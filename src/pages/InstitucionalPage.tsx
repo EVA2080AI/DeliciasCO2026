@@ -123,8 +123,20 @@ const InstitucionalPage = () => {
   };
 
   /** Inserta la fila (id generado en el cliente: el público no tiene SELECT para usar RETURNING). */
+  /** PostgREST responde PGRST204 / 42703 cuando una columna no existe (migración aún no aplicada). */
+  const isMissingColumnError = (e: { code?: string; message?: string }) =>
+    e.code === 'PGRST204' || e.code === '42703' || /schema cache|column .* does not exist/i.test(e.message ?? '');
+
   const saveQuotation = async (row: QuotationInsert): Promise<string> => {
     const { error } = await supabase.from('quotations').insert(row);
+    if (error && isMissingColumnError(error)) {
+      // Compatibilidad: si la migración 20260825_qa_fixes aún no corrió, guardar sin las columnas
+      // nuevas (toda la información de entrega también va en `notes`).
+      const { delivery_type: _dt, sede: _sd, address: _ad, requested_date: _rq, ...legacy } = row;
+      const { error: legacyError } = await supabase.from('quotations').insert(legacy);
+      if (legacyError) throw legacyError;
+      return row.id as string;
+    }
     if (error) throw error;
     return row.id as string;
   };
