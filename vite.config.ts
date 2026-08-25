@@ -99,7 +99,17 @@ export default defineConfig(({ mode }) => ({
             if (/[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/.test(id)) return "motion";
             return "vendor";
           }
-          if (id.includes("/src/pages/admin/") || id.includes("/src/components/admin/")) return "admin";
+          // Admin y sus librerías exclusivas: un solo chunk que el público nunca descarga.
+          if (
+            id.includes("/src/pages/admin/") ||
+            id.includes("/src/components/admin/") ||
+            id.includes("/src/lib/mediaOptimizer") ||
+            id.includes("/src/lib/storage") ||
+            id.includes("/src/lib/imageCompression")
+          ) return "admin";
+          // Código compartido (hooks, componentes, libs): chunk propio para que Rollup no lo
+          // arrastre dentro de "admin" (haría que la portada descargue todo el panel).
+          if (/[\\/]src[\\/](components|hooks|lib|integrations|store|data|assets)[\\/]/.test(id)) return "app";
           return undefined;
         },
       },
