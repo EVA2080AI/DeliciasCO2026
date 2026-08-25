@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, X, XCircle } from 'lucide-react';
 import {
   collectReferences,
@@ -38,12 +39,6 @@ const describeRefs = (item: PlanItem) => {
   return [...new Set(parts)].join(', ');
 };
 
-const QUERY_KEYS_TO_REFRESH = [
-  ['products'], ['product'], ['admin-products'],
-  ['site-settings'],
-  ['page-sections'], ['page-sections-all'],
-  ['blog-posts'], ['blog-posts-home'], ['blog-post'], ['admin-blog-posts'],
-];
 
 export const OptimizeMediaDialog = ({ isOpen, onClose, onFinished }: Props) => {
   const qc = useQueryClient();
@@ -115,7 +110,7 @@ export const OptimizeMediaDialog = ({ isOpen, onClose, onFinished }: Props) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      QUERY_KEYS_TO_REFRESH.forEach((queryKey) => qc.invalidateQueries({ queryKey }));
+      invalidateCms(qc, [...CMS_KEYS.products, ...CMS_KEYS.settings, ...CMS_KEYS.sections, ...CMS_KEYS.blog]);
       setStage('done');
       onFinished();
     }

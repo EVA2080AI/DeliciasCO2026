@@ -41,11 +41,10 @@ export const Header = () => {
       const { data } = await supabase.from('pages').select('slug, active').eq('active', true);
       return data?.map(p => p.slug) || [];
     },
-    // staleTime: 0 — inherited globally; nav links update as soon as CMS changes them
   });
 
   const navLinks = useMemo(() => {
-    if (!pages) return allNavLinks;
+    if (!pages || pages.length === 0) return allNavLinks;
     return allNavLinks.filter(l => l.slug === 'inicio' || pages.includes(l.slug));
   }, [pages]);
 

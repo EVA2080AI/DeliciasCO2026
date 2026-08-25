@@ -41,7 +41,6 @@ export const useProducts = () => {
       if (error) throw error;
       return (data as DbProduct[]).map(mapDbProduct);
     },
-    staleTime: 1000 * 60 * 5,
   });
 };
 

@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
+import { toWaNumber } from '@/lib/whatsapp';
 
 export type Sede = {
   id: string;
   name: string;
-  type: 'tienda';
+  type: 'tienda' | 'administrativa';
   phone: string;
   whatsapp: string;
   email?: string;
@@ -12,7 +14,7 @@ export type Sede = {
   mapEmbed: string;
 };
 
-const fallBackSedes: Sede[] = [
+export const fallBackSedes: Sede[] = [
   {
     id: 'sede-quirinal',
     name: 'Sede Quirinal',
@@ -37,22 +39,54 @@ const fallBackSedes: Sede[] = [
   }
 ];
 
+/** Número de respaldo cuando el CMS no tiene sedes (primera tienda por defecto). */
+export const DEFAULT_WHATSAPP = fallBackSedes[0].whatsapp;
+
+const slugify = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+const str = (v: unknown) => (v === null || v === undefined ? '' : String(v)).trim();
+
+/**
+ * El JSON de sedes lo edita el dueño desde el panel: puede venir sin `id`, `type`, `whatsapp` o
+ * `mapEmbed`. Normalizamos para que ningún consumidor tenga que hacer guards.
+ */
+export const normalizeSede = (raw: unknown, index: number): Sede | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = str(r.name);
+  if (!name) return null;
+  const phone = str(r.phone);
+  const type = str(r.type).toLowerCase() === 'administrativa' || /administrativ/i.test(name) ? 'administrativa' : 'tienda';
+  return {
+    id: str(r.id) || `sede-${slugify(name) || index + 1}`,
+    name,
+    type,
+    phone,
+    whatsapp: toWaNumber(str(r.whatsapp) || phone),
+    email: str(r.email) || undefined,
+    hours: str(r.hours),
+    address: str(r.address),
+    mapEmbed: str(r.mapEmbed),
+  };
+};
+
+export const parseSedes = (json: string | null | undefined): Sede[] => {
+  if (!json) return fallBackSedes;
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return fallBackSedes;
+    const list = parsed.map(normalizeSede).filter((s): s is Sede => s !== null);
+    return list.length > 0 ? list : fallBackSedes;
+  } catch {
+    return fallBackSedes;
+  }
+};
+
 export const useSedes = () => {
   const { settings, isLoading, error } = useSiteSettingsMap();
-
-  let sedes: Sede[] = [];
-  try {
-    if (settings.sedes) {
-      const parsed = JSON.parse(settings.sedes);
-      sedes = Array.isArray(parsed) && parsed.length > 0 ? parsed : fallBackSedes;
-    } else {
-      sedes = fallBackSedes;
-    }
-  } catch {
-    sedes = fallBackSedes;
-  }
-
-  const tiendas = sedes.filter((s) => s.type === 'tienda');
-
+  const sedesJson = settings.sedes;
+  const sedes = useMemo(() => parseSedes(sedesJson), [sedesJson]);
+  const tiendas = useMemo(() => sedes.filter((s) => s.type === 'tienda'), [sedes]);
   return { sedes, tiendas, isLoading, error };
 };

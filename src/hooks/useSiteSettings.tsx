@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 
 export type SiteSetting = {
   id: string;
@@ -21,16 +23,21 @@ export const useSiteSettings = (category?: string) => {
       if (error) throw error;
       return (data || []) as SiteSetting[];
     },
-    // staleTime: 0 — inherited from QueryClient defaultOptions
-    // Always fetch fresh: logo, colors, brand name must reflect latest CMS changes
   });
 };
 
+const EMPTY: Record<string, string> = {};
+
 export const useSiteSettingsMap = () => {
   const { data, ...rest } = useSiteSettings();
-  const map: Record<string, string> = {};
-  data?.forEach(s => { map[s.key] = s.value; });
-  return { settings: map, raw: data, ...rest };
+  // Memoizado: el objeto solo cambia cuando cambian los datos (DynamicTheme depende de su identidad).
+  const settings = useMemo(() => {
+    if (!data) return EMPTY;
+    const map: Record<string, string> = {};
+    data.forEach((s) => { map[s.key] = s.value; });
+    return map;
+  }, [data]);
+  return { settings, raw: data, ...rest };
 };
 
 export const useUpdateSiteSetting = () => {
@@ -43,8 +50,6 @@ export const useUpdateSiteSetting = () => {
         .eq('key', key);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['site-settings'] });
-    },
+    onSuccess: () => invalidateCms(qc, CMS_KEYS.settings),
   });
 };

@@ -1,4 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -22,7 +24,7 @@ const AdminPages = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState('');
 
-  const { data: pages, isLoading } = useQuery({
+  const { data: pages, isLoading } = useAdminQuery({
     queryKey: ['admin-pages'],
     queryFn: async () => {
       const { data, error } = await supabase.from('pages').select('*').order('sort_order');
@@ -32,7 +34,7 @@ const AdminPages = () => {
   });
 
   // Count sections per page
-  const { data: sectionCounts } = useQuery({
+  const { data: sectionCounts } = useAdminQuery({
     queryKey: ['section-counts'],
     queryFn: async () => {
       const { data, error } = await supabase.from('page_sections').select('page_slug');
@@ -49,8 +51,7 @@ const AdminPages = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-pages'] });
-      qc.invalidateQueries({ queryKey: ['active-pages'] });
+      invalidateCms(qc, CMS_KEYS.pages);
       toast.success('Página actualizada');
     },
     onError: (e) => toast.error(e.message),
@@ -62,7 +63,7 @@ const AdminPages = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-pages'] });
+      invalidateCms(qc, CMS_KEYS.pages);
       setEditingId(null);
       toast.success('Descripción actualizada');
     },

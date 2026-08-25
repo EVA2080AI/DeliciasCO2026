@@ -1,4 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useRef } from 'react';
@@ -43,7 +45,7 @@ const AdminBlog = () => {
   const [catFilter, setCatFilter] = useState<string>('all');
   const [pubFilter, setPubFilter] = useState<string>('all');
 
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading } = useAdminQuery({
     queryKey: ['admin-blog-posts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -66,9 +68,7 @@ const AdminBlog = () => {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-blog-posts'] });
-      qc.invalidateQueries({ queryKey: ['blog-posts'] });
-      qc.invalidateQueries({ queryKey: ['blog-posts-home'] });
+      invalidateCms(qc, CMS_KEYS.blog);
       setEditing(null);
       setCreating(false);
       toast.success('Artículo guardado');
@@ -82,7 +82,7 @@ const AdminBlog = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-blog-posts'] });
+      invalidateCms(qc, CMS_KEYS.blog);
       toast.success('Artículo eliminado');
     },
     onError: (e) => toast.error(e.message),
@@ -97,7 +97,7 @@ const AdminBlog = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-blog-posts'] });
+      invalidateCms(qc, CMS_KEYS.blog);
       toast.success('Estado actualizado');
     },
     onError: (e) => toast.error(e.message),

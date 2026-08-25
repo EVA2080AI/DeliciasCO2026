@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, ShoppingBag, FileText, TrendingUp, BookOpen, Clock, ArrowRight, AlertCircle, Users, Layers, MapPin } from 'lucide-react';
 import { FadeInWhenVisible, StaggerContainer, StaggerItem } from '@/components/ScrollAnimations';
@@ -38,7 +38,7 @@ const SEDES = [
 const AdminDashboard = () => {
   const [selectedSede, setSelectedSede] = useState<string>('all');
 
-  const { data: productsCount } = useQuery({
+  const { data: productsCount } = useAdminQuery({
     queryKey: ['admin-products-count'],
     queryFn: async () => {
       const { count } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('active', true);
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const { data: ordersData } = useQuery({
+  const { data: ordersData } = useAdminQuery({
     queryKey: ['admin-orders-stats', selectedSede],
     queryFn: async () => {
       let query = supabase.from('orders').select('total, status, created_at, sede');
@@ -69,7 +69,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const { data: quotationsData } = useQuery({
+  const { data: quotationsData } = useAdminQuery({
     queryKey: ['admin-quotations-stats', selectedSede],
     queryFn: async () => {
       let query = supabase.from('quotations').select('status, notes');
@@ -83,7 +83,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const { data: blogCount } = useQuery({
+  const { data: blogCount } = useAdminQuery({
     queryKey: ['admin-blog-count'],
     queryFn: async () => {
       const { count } = await supabase.from('blog_posts').select('*', { count: 'exact', head: true });
@@ -91,7 +91,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const { data: recentOrders } = useQuery({
+  const { data: recentOrders } = useAdminQuery({
     queryKey: ['admin-recent-orders', selectedSede],
     queryFn: async () => {
       let query = supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(8);
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const { data: recentQuotations } = useQuery({
+  const { data: recentQuotations } = useAdminQuery({
     queryKey: ['admin-recent-quotations', selectedSede],
     queryFn: async () => {
       let query = supabase.from('quotations').select('*').order('created_at', { ascending: false }).limit(5);

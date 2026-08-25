@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,7 +47,7 @@ const AdminOrders = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading } = useAdminQuery({
     queryKey: ['admin-orders'],
     queryFn: async () => {
       const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });

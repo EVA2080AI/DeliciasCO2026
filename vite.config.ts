@@ -95,6 +95,7 @@ export default defineConfig(({ mode }) => ({
             if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run)[\\/]/.test(id)) return "react-vendor";
             if (id.includes("@supabase")) return "supabase";
             if (id.includes("@tanstack")) return "query";
+            if (id.includes("browser-image-compression")) return "admin";
             if (/[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/.test(id)) return "motion";
             return "vendor";
           }

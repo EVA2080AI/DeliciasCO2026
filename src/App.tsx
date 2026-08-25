@@ -1,3 +1,4 @@
+import { Suspense, useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -5,86 +6,116 @@ import { AuthProvider } from "./hooks/useAuth";
 import DynamicTheme from "./components/DynamicTheme";
 import ScrollToTop from "./components/ScrollToTop";
 import Layout from "./components/Layout";
+import PageFallback from "./components/PageFallback";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { subscribeCmsSync } from "./lib/cmsSync";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
 import Index from "./pages/Index";
-import MenuPage from "./pages/MenuPage";
-import ProductDetail from "./pages/ProductDetail";
-import SedesPage from "./pages/SedesPage";
-import InstitucionalPage from "./pages/InstitucionalPage";
-import NosotrosPage from "./pages/NosotrosPage";
-import BlogPage from "./pages/BlogPage";
-import BlogDetailPage from "./pages/BlogDetailPage";
-import FaqPage from "./pages/FaqPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminProducts from "./pages/admin/AdminProducts";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminQuotations from "./pages/admin/AdminQuotations";
-import AdminPages from "./pages/admin/AdminPages";
-import AdminBlog from "./pages/admin/AdminBlog";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminSections from "./pages/admin/AdminSections";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminMedia from "./pages/admin/AdminMedia";
-import AdminProfile from "./pages/admin/AdminProfile";
 import NotFound from "./pages/NotFound";
+
+// Público: la portada carga eager (LCP); el resto bajo demanda.
+const MenuPage = lazyWithRetry(() => import("./pages/MenuPage"));
+const ProductDetail = lazyWithRetry(() => import("./pages/ProductDetail"));
+const SedesPage = lazyWithRetry(() => import("./pages/SedesPage"));
+const InstitucionalPage = lazyWithRetry(() => import("./pages/InstitucionalPage"));
+const NosotrosPage = lazyWithRetry(() => import("./pages/NosotrosPage"));
+const BlogPage = lazyWithRetry(() => import("./pages/BlogPage"));
+const BlogDetailPage = lazyWithRetry(() => import("./pages/BlogDetailPage"));
+const FaqPage = lazyWithRetry(() => import("./pages/FaqPage"));
+const CheckoutPage = lazyWithRetry(() => import("./pages/CheckoutPage"));
+
+// Admin: un solo chunk (manualChunks) que los visitantes nunca descargan.
+const AdminLogin = lazyWithRetry(() => import("./pages/admin/AdminLogin"));
+const AdminLayout = lazyWithRetry(() => import("./pages/admin/AdminLayout"));
+const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"));
+const AdminProducts = lazyWithRetry(() => import("./pages/admin/AdminProducts"));
+const AdminOrders = lazyWithRetry(() => import("./pages/admin/AdminOrders"));
+const AdminQuotations = lazyWithRetry(() => import("./pages/admin/AdminQuotations"));
+const AdminPages = lazyWithRetry(() => import("./pages/admin/AdminPages"));
+const AdminBlog = lazyWithRetry(() => import("./pages/admin/AdminBlog"));
+const AdminSettings = lazyWithRetry(() => import("./pages/admin/AdminSettings"));
+const AdminSections = lazyWithRetry(() => import("./pages/admin/AdminSections"));
+const AdminUsers = lazyWithRetry(() => import("./pages/admin/AdminUsers"));
+const AdminMedia = lazyWithRetry(() => import("./pages/admin/AdminMedia"));
+const AdminProfile = lazyWithRetry(() => import("./pages/admin/AdminProfile"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Always consider data stale immediately → fetches fresh data on every mount
-      staleTime: 0,
-      // gcTime: 0 → don't keep stale CMS data in memory between navigations
-      // This prevents the "flash of old content" where outdated images/text appear briefly
-      gcTime: 0,
-      // Retry once on failure
+      // Sitio público: caché de 2 min (navegar entre páginas no refetchea ni muestra skeletons).
+      // El panel admin usa useAdminQuery (siempre fresco) y sus mutaciones invalidan estas keys
+      // en TODAS las pestañas (lib/cmsSync), así que no hay "flash" de contenido viejo.
+      staleTime: 2 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
       retry: 1,
-      // Refetch when user switches back to the tab
       refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
     },
   },
 });
 
+const CmsSync = () => {
+  useEffect(() => subscribeCmsSync(queryClient), []);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-        <Sonner />
-        <DynamicTheme />
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Layout><Index /></Layout>} />
-            <Route path="/menu" element={<Layout><MenuPage /></Layout>} />
-            <Route path="/producto/:id" element={<Layout><ProductDetail /></Layout>} />
-            <Route path="/sedes" element={<Layout><SedesPage /></Layout>} />
-            <Route path="/institucional" element={<Layout><InstitucionalPage /></Layout>} />
-            <Route path="/nosotros" element={<Layout><NosotrosPage /></Layout>} />
-            <Route path="/blog" element={<Layout><BlogPage /></Layout>} />
-            <Route path="/blog/:slug" element={<Layout><BlogDetailPage /></Layout>} />
-            <Route path="/preguntas-frecuentes" element={<Layout><FaqPage /></Layout>} />
-            <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
+      <Sonner />
+      <DynamicTheme />
+      <CmsSync />
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
+          {/* Público: Layout persistente con Header/Footer montados una sola vez */}
+          <Route element={<Layout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/producto/:id" element={<ProductDetail />} />
+            <Route path="/sedes" element={<SedesPage />} />
+            <Route path="/institucional" element={<InstitucionalPage />} />
+            <Route path="/nosotros" element={<NosotrosPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogDetailPage />} />
+            <Route path="/preguntas-frecuentes" element={<FaqPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
 
-            {/* Admin routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="quotations" element={<AdminQuotations />} />
-              <Route path="pages" element={<AdminPages />} />
-              <Route path="blog" element={<AdminBlog />} />
-              <Route path="settings" element={<AdminSettings />} />
-              <Route path="sections" element={<AdminSections />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="profile" element={<AdminProfile />} />
-              <Route path="media" element={<AdminMedia />} />
-            </Route>
-
-            <Route path="*" element={<Layout><NotFound /></Layout>} />
-          </Routes>
-        </BrowserRouter>
+          {/* Admin */}
+          <Route
+            path="/admin/login"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <AdminLogin />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <AdminLayout />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="quotations" element={<AdminQuotations />} />
+            <Route path="pages" element={<AdminPages />} />
+            <Route path="blog" element={<AdminBlog />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="sections" element={<AdminSections />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="media" element={<AdminMedia />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   </QueryClientProvider>
 );

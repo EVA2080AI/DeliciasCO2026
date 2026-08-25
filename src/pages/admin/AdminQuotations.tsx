@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,7 +37,7 @@ const AdminQuotations = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: quotations, isLoading } = useQuery({
+  const { data: quotations, isLoading } = useAdminQuery({
     queryKey: ['admin-quotations'],
     queryFn: async () => {
       const { data, error } = await supabase.from('quotations').select('*').order('created_at', { ascending: false });

@@ -1,4 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { ThumbImage } from '@/components/ThumbImage';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useRef, useCallback } from 'react';
@@ -34,7 +36,7 @@ const AdminProducts = () => {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string>('all');
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading } = useAdminQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*').order('sort_order');
@@ -54,8 +56,7 @@ const AdminProducts = () => {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-products'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      invalidateCms(qc, CMS_KEYS.products);
       setEditing(null);
       setCreating(false);
       toast.success('Producto guardado');
@@ -72,8 +73,7 @@ const AdminProducts = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-products'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      invalidateCms(qc, CMS_KEYS.products);
       toast.success('Producto eliminado');
     },
     onError: (e) => toast.error(e.message),
@@ -88,8 +88,7 @@ const AdminProducts = () => {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-products'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      invalidateCms(qc, CMS_KEYS.products);
     },
     onError: (e) => toast.error('Error al reordenar: ' + e.message),
   });

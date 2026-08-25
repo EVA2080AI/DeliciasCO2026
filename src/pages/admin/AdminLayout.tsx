@@ -1,8 +1,11 @@
 import { Outlet, Link, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import logoImg from '@/assets/images/logo.webp';
+import { Suspense } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import PageFallback from '@/components/PageFallback';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettingsMap } from '@/hooks/useSiteSettings';
-import { useQuery } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { LayoutDashboard, Package, FileText, ShoppingBag, LogOut, Globe, BookOpen, Menu, X, ExternalLink, Settings, ChevronDown, UserPlus, Image as ImageIcon, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,7 +60,7 @@ const AdminLayout = () => {
   const logoUrl = settingsLoading ? null : (settings.brand_logo || logoImg);
 
   // Fetch pages for the dropdown
-  const { data: pages } = useQuery({
+  const { data: pages } = useAdminQuery({
     queryKey: ['admin-pages-nav'],
     queryFn: async () => {
       const { data, error } = await supabase.from('pages').select('*').order('sort_order');
@@ -277,7 +280,7 @@ const AdminLayout = () => {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto md:max-h-screen">
         <div className="p-4 pt-20 md:p-8 md:pt-8">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}><Suspense fallback={<PageFallback />}><Outlet /></Suspense></ErrorBoundary>
         </div>
       </main>
     </div>

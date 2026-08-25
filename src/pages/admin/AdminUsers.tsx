@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { Shield, Mail, Key, Plus, Trash2, Loader2, UserPlus, Lock, Send, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,7 +25,7 @@ const AdminUsers = () => {
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   // List all admin users via Security Definer RPC (bypasses RLS recursion)
-  const { data: adminUsers, isLoading } = useQuery({
+  const { data: adminUsers, isLoading } = useAdminQuery({
     queryKey: ['admin-user-roles'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_admin_users' as any);

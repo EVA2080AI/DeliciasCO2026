@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { supabase } from '@/integrations/supabase/client';
 
 export type PageSection = {
@@ -28,15 +30,17 @@ export const usePageSections = (pageSlug: string) => {
       if (error) throw error;
       return (data || []) as PageSection[];
     },
-    // staleTime: 0 — inherited from QueryClient defaultOptions (always fresh CMS content)
   });
 };
 
 export const usePageSectionsMap = (pageSlug: string) => {
   const { data, ...rest } = usePageSections(pageSlug);
-  const map: Record<string, PageSection> = {};
-  data?.forEach(s => { map[s.section_key] = s; });
-  return { sections: map, raw: data, ...rest };
+  const sections = useMemo(() => {
+    const map: Record<string, PageSection> = {};
+    data?.forEach((s) => { map[s.section_key] = s; });
+    return map;
+  }, [data]);
+  return { sections, raw: data, ...rest };
 };
 
 export const useUpdatePageSection = () => {
@@ -51,10 +55,7 @@ export const useUpdatePageSection = () => {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['page-sections'] });
-      qc.invalidateQueries({ queryKey: ['page-sections-all'] });
-    },
+    onSuccess: () => invalidateCms(qc, CMS_KEYS.sections),
   });
 };
 
@@ -70,6 +71,8 @@ export const useAllPageSections = () => {
       if (error) throw error;
       return (data || []) as PageSection[];
     },
-    // staleTime: 0 — inherited from QueryClient defaultOptions
+    // Solo admin: siempre fresco al montar
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 };
