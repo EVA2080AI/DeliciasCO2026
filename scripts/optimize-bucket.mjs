@@ -10,10 +10,14 @@
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 
+// Dos modos de autenticación:
+//   a) SUPABASE_SERVICE_ROLE_KEY                               (clave secreta del proyecto)
+//   b) SUPABASE_ANON_KEY + SUPABASE_ADMIN_EMAIL/PASSWORD      (sesión de un usuario con rol admin)
 const URL_ = process.env.SUPABASE_URL;
-const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!URL_ || !KEY) {
-  console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY');
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.SUPABASE_ANON_KEY;
+if (!URL_ || (!SERVICE_KEY && !(ANON_KEY && process.env.SUPABASE_ADMIN_EMAIL && process.env.SUPABASE_ADMIN_PASSWORD))) {
+  console.error('Faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_ANON_KEY + SUPABASE_ADMIN_EMAIL/PASSWORD)');
   process.exit(1);
 }
 const args = new Set(process.argv.slice(2));
@@ -24,7 +28,12 @@ const DELETE_ORPHANS = args.has('--delete-orphans');
 const BUCKET = 'product-images';
 const PUBLIC_PREFIX = `/storage/v1/object/public/${BUCKET}/`;
 const CACHE_CONTROL = '31536000';
-const sb = createClient(URL_, KEY, { auth: { persistSession: false } });
+const sb = createClient(URL_, SERVICE_KEY ?? ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+if (!SERVICE_KEY) {
+  const { error } = await sb.auth.signInWithPassword({ email: process.env.SUPABASE_ADMIN_EMAIL, password: process.env.SUPABASE_ADMIN_PASSWORD });
+  if (error) { console.error('Login admin falló:', error.message); process.exit(1); }
+  console.log(`Sesión admin: ${process.env.SUPABASE_ADMIN_EMAIL}`);
+}
 
 // Mismos presets que src/lib/imageCompression.ts (tamaño máx. y calidad)
 const PRESETS = {
