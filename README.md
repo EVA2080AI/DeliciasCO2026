@@ -43,14 +43,11 @@ Regenerar tipos tras cambiar el esquema: `supabase gen types typescript --linked
 
 ## Notificaciones de pedidos / cotizaciones
 
-`supabase/functions/notify-new-lead` envía un correo (Resend) cada vez que se inserta una fila en `quotations` u `orders`.
-
-1. `supabase secrets set RESEND_API_KEY=... NOTIFY_FROM="Delicias <pedidos@tudominio.com>"`
-2. `supabase functions deploy notify-new-lead --no-verify-jwt`
-3. Dashboard → Database → Webhooks: crear dos webhooks (INSERT en `quotations` e INSERT en `orders`) apuntando a la URL de la función. Opcional: header `x-webhook-secret` y secreto `WEBHOOK_SECRET`.
-4. Admin → Configuración → **Correo para avisos** (`notification_email`).
-
-Mientras tanto, el panel muestra un contador de cotizaciones/pedidos pendientes que se refresca cada minuto y puede activar avisos del navegador.
+Sin dependencias externas: el panel (barra lateral) muestra cada minuto un contador de cotizaciones
+y pedidos pendientes (`admin-pending-counts`), y si el dueño activa "Activar avisos" en el pie de la
+barra lateral, el navegador dispara una notificación del sistema cuando ese contador sube.
+`site_settings.notification_email` queda disponible por si más adelante se conecta un proveedor de
+correo (Resend u otro) a un Database Webhook — hoy no hay ninguno configurado.
 
 ## Estructura
 
