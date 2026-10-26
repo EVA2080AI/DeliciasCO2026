@@ -25,6 +25,11 @@ const FaqPage = lazyWithRetry(() => import("./pages/FaqPage"));
 const CheckoutPage = lazyWithRetry(() => import("./pages/CheckoutPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 
+// Comandas: herramienta del salón, fuera del Layout público (sin header ni footer).
+const ComandasMesera = lazyWithRetry(() => import("./pages/comandas/ComandasMesera"));
+const ComandasCocina = lazyWithRetry(() => import("./pages/comandas/ComandasCocina"));
+const ComandasCaja = lazyWithRetry(() => import("./pages/comandas/ComandasCaja"));
+
 // Admin: un solo chunk (manualChunks) que los visitantes nunca descargan.
 const AdminLogin = lazyWithRetry(() => import("./pages/admin/AdminLogin"));
 const AdminResetPassword = lazyWithRetry(() => import("./pages/admin/AdminResetPassword"));
@@ -40,6 +45,7 @@ const AdminSections = lazyWithRetry(() => import("./pages/admin/AdminSections"))
 const AdminUsers = lazyWithRetry(() => import("./pages/admin/AdminUsers"));
 const AdminMedia = lazyWithRetry(() => import("./pages/admin/AdminMedia"));
 const AdminProfile = lazyWithRetry(() => import("./pages/admin/AdminProfile"));
+const AdminComandas = lazyWithRetry(() => import("./pages/admin/AdminComandas"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +92,38 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Route>
 
+          {/* Comandas Panadería: la mesera, la cocina y la caja entran por link directo. */}
+          <Route
+            path="/comandas"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <ComandasMesera />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/comandas/cocina"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <ComandasCocina />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/comandas/caja"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <ComandasCaja />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          />
+
           {/* Admin */}
           <Route
             path="/admin/login"
@@ -115,6 +153,7 @@ const App = () => (
           >
             <Route index element={<AdminDashboard />} />
             <Route path="products" element={<AdminProducts />} />
+            <Route path="comandas" element={<AdminComandas />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="quotations" element={<AdminQuotations />} />
             <Route path="pages" element={<AdminPages />} />

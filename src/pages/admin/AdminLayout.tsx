@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   LayoutDashboard, Package, FileText, ShoppingBag, LogOut, Globe, BookOpen, Menu, X, ExternalLink,
-  Settings, ChevronDown, UserPlus, Image as ImageIcon, Shield, Bell, type LucideIcon,
+  Settings, ChevronDown, UserPlus, Image as ImageIcon, Shield, Bell, UtensilsCrossed, type LucideIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,6 +22,7 @@ const mainNavItems: NavItemDef[] = [
   { to: '/admin/products', icon: Package, label: 'Productos' },
   { to: '/admin/orders', icon: ShoppingBag, label: 'Pedidos', badgeKey: 'orders' },
   { to: '/admin/quotations', icon: FileText, label: 'Cotizaciones', badgeKey: 'quotations' },
+  { to: '/admin/comandas', icon: UtensilsCrossed, label: 'Comandas' },
   { to: '/admin/media', icon: ImageIcon, label: 'Librería' },
 ];
 

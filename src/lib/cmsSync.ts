@@ -43,4 +43,7 @@ export const CMS_KEYS = {
   sections: [['page-sections'], ['page-sections-all']] as QueryKey[],
   products: [['products'], ['product'], ['admin-products']] as QueryKey[],
   blog: [['blog-posts'], ['blog-posts-home'], ['blog-post'], ['admin-blog-posts']] as QueryKey[],
+  // Catálogo de mesa: al cambiar un precio desde el admin, las pantallas del salón
+  // (mesera, cocina, caja) lo ven sin recargar.
+  comandas: [['comanda-products'], ['admin-comanda-products']] as QueryKey[],
 };

@@ -59,6 +59,123 @@ export type Database = {
         }
         Relationships: []
       }
+      comanda_items: {
+        Row: {
+          comanda_id: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          product_id: string | null
+          quantity: number
+          ready: boolean
+          unit_price: number
+        }
+        Insert: {
+          comanda_id: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          ready?: boolean
+          unit_price: number
+        }
+        Update: {
+          comanda_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          ready?: boolean
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comanda_items_comanda_id_fkey"
+            columns: ["comanda_id"]
+            isOneToOne: false
+            referencedRelation: "comandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comanda_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "comanda_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comanda_products: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          name: string
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      comandas: {
+        Row: {
+          created_at: string
+          id: string
+          mesa: string
+          mesera: string
+          paid: boolean
+          paid_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mesa: string
+          mesera: string
+          paid?: boolean
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mesa?: string
+          mesera?: string
+          paid?: boolean
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
