@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Copy, ExternalLink, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
@@ -14,6 +14,14 @@ import type { Database } from '@/integrations/supabase/types';
 type ComandaProductInsert = Database['public']['Tables']['comanda_products']['Insert'];
 
 const emptyDraft: ComandaProductInsert = { name: '', category: COMANDA_CATEGORIES[0].id, price: 0, active: true };
+
+// Las tres pantallas del salón viven fuera del panel y se entra por link directo. Sin esto, el
+// dueño no tiene de dónde sacarlas para pasárselas al personal.
+const SALON_LINKS = [
+  { path: '/comandas', label: 'Mesera', hint: 'Este es el que se comparte con las meseras' },
+  { path: '/comandas/cocina', label: 'Cocina', hint: 'Lo que falta preparar' },
+  { path: '/comandas/caja', label: 'Caja', hint: 'Cada mesa con su total y si ya pagó' },
+];
 
 const AdminComandas = () => {
   usePageTitle('Comandas');
@@ -67,6 +75,18 @@ const AdminComandas = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // El dominio cambia entre el preview y producción: se lee del navegador en vez de fijarlo.
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copiado');
+    } catch {
+      toast.error('No se pudo copiar. Mantén pulsado el link para copiarlo a mano.');
+    }
+  };
+
   const inputClass =
     'px-4 py-2.5 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all';
 
@@ -87,6 +107,47 @@ const AdminComandas = () => {
           Nuevo
         </button>
       </header>
+
+      <section className="rounded-xl border p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold text-sm">Pantallas del salón</h2>
+          <p className="text-xs text-muted-foreground">
+            Se entra por link, sin usuario ni contraseña. La mesera escribe su nombre al empezar el turno.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {SALON_LINKS.map(({ path, label, hint }) => {
+            const url = `${origin}${path}`;
+            return (
+              <div key={path} className="rounded-lg border p-3 space-y-2">
+                <div>
+                  <p className="font-medium text-sm">{label}</p>
+                  <p className="text-xs text-muted-foreground">{hint}</p>
+                </div>
+                <p className="text-[11px] font-mono text-muted-foreground break-all">{url}</p>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => copyLink(url)}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted flex items-center justify-center gap-1.5"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar
+                  </button>
+                  <a
+                    href={path}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Abrir
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <AnimatePresence>
         {draft && (
