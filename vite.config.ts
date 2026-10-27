@@ -1,8 +1,26 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+
+// Las credenciales públicas de Supabase viven en el entorno, no en el código: así se apunta la app
+// a otra base cambiando una variable en Vercel, sin recompilar a mano. Si faltan, el build falla
+// aquí a propósito. En Vercel un build fallido deja en pie el despliegue anterior, mientras que
+// descubrirlo en el navegador dejaría la web en blanco a los clientes.
+const requireSupabaseEnv: Plugin = {
+  name: "require-supabase-env",
+  config(_config, { mode }) {
+    // Las variables reales del proceso (las de Vercel) pisan a las de los archivos .env.
+    const env = { ...loadEnv(mode, process.cwd(), "VITE_"), ...process.env };
+    if (env.VITE_SUPABASE_URL && (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY)) return;
+    throw new Error(
+      "Faltan variables de entorno: VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY (o " +
+        "VITE_SUPABASE_ANON_KEY). En local, copia .env.example a .env. En Vercel, defínelas en " +
+        "Settings > Environment Variables para Production, Preview y Development.",
+    );
+  },
+};
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -14,6 +32,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
+    requireSupabaseEnv,
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
