@@ -8,7 +8,13 @@ import { useAdminQuery } from '@/hooks/useAdminQuery';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { CMS_KEYS, invalidateCms } from '@/lib/cmsSync';
 import { formatCOP } from '@/lib/quotation';
-import { COMANDA_CATEGORIES, fetchComandaProducts, type ComandaProduct } from '@/lib/comandas';
+import {
+  COMANDA_CATEGORIES,
+  fetchComandaMesas,
+  fetchComandaProducts,
+  type ComandaMesa,
+  type ComandaProduct,
+} from '@/lib/comandas';
 import type { Database } from '@/integrations/supabase/types';
 
 type ComandaProductInsert = Database['public']['Tables']['comanda_products']['Insert'];
@@ -27,10 +33,73 @@ const AdminComandas = () => {
   usePageTitle('Comandas');
   const qc = useQueryClient();
   const [draft, setDraft] = useState<(ComandaProductInsert & { id?: string }) | null>(null);
+  const [mesaDraft, setMesaDraft] = useState('');
 
   const { data: products, isPending } = useAdminQuery({
     queryKey: ['admin-comanda-products'],
     queryFn: () => fetchComandaProducts(false),
+  });
+
+  // El admin ve también las ocultas: son las que la mesera no puede tocar hoy.
+  const { data: mesas, isPending: loadingMesas } = useAdminQuery({
+    queryKey: ['admin-comanda-mesas'],
+    queryFn: () => fetchComandaMesas(false),
+  });
+
+  // El nombre es único en la base: sin eso volvemos a "Mesa 5" y "mesa 5" como dos cuentas.
+  const duplicada = (error: { code?: string; message: string }, name: string) =>
+    new Error(error.code === '23505' ? `Ya hay una mesa llamada "${name}".` : error.message);
+
+  const addMesa = useMutation({
+    mutationFn: async (name: string) => {
+      const last = (mesas ?? []).reduce((max, m) => Math.max(max, m.sort_order), -1);
+      const { error } = await supabase
+        .from('comanda_mesas')
+        .insert({ name, sort_order: last + 1 });
+      if (error) throw duplicada(error, name);
+    },
+    onSuccess: () => {
+      invalidateCms(qc, CMS_KEYS.comandas);
+      setMesaDraft('');
+      toast.success('Mesa agregada');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const renameMesa = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase.from('comanda_mesas').update({ name }).eq('id', id);
+      if (error) throw duplicada(error, name);
+    },
+    onSuccess: () => {
+      invalidateCms(qc, CMS_KEYS.comandas);
+      toast.success('Mesa renombrada');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleMesa = useMutation({
+    mutationFn: async (mesa: ComandaMesa) => {
+      const { error } = await supabase
+        .from('comanda_mesas')
+        .update({ active: !mesa.active })
+        .eq('id', mesa.id);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateCms(qc, CMS_KEYS.comandas),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeMesa = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('comanda_mesas').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateCms(qc, CMS_KEYS.comandas);
+      toast.success('Mesa eliminada');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const upsert = useMutation({
@@ -146,6 +215,88 @@ const AdminComandas = () => {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="rounded-xl border p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold text-sm">Mesas del salón</h2>
+          <p className="text-xs text-muted-foreground">
+            La mesera toca una de estas en vez de escribir el nombre. Renombrar o quitar una mesa no
+            cambia las cuentas que ya se cobraron.
+          </p>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const clean = mesaDraft.trim();
+            if (clean === '') return;
+            addMesa.mutate(clean);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={mesaDraft}
+            onChange={(e) => setMesaDraft(e.target.value)}
+            placeholder="Mesa 5, Barra, Para llevar…"
+            className={`${inputClass} flex-1 min-w-0`}
+          />
+          <button
+            type="submit"
+            disabled={mesaDraft.trim() === '' || addMesa.isPending}
+            className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-40 flex items-center gap-1.5 shrink-0"
+          >
+            {addMesa.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Agregar
+          </button>
+        </form>
+
+        {loadingMesas && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+
+        {!loadingMesas && mesas?.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Todavía no hay mesas cargadas. Mientras la lista esté vacía, la mesera sigue escribiendo
+            el nombre a mano, como hasta ahora.
+          </p>
+        )}
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {mesas?.map((m) => (
+            <div key={`${m.id}-${m.name}`} className="flex items-center gap-2 p-2 rounded-lg border">
+              <input
+                defaultValue={m.name}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+                onBlur={(e) => {
+                  const clean = e.target.value.trim();
+                  if (clean === '' || clean === m.name) {
+                    e.target.value = m.name;
+                    return;
+                  }
+                  renameMesa.mutate({ id: m.id, name: clean });
+                }}
+                aria-label={`Nombre de ${m.name}`}
+                className={`flex-1 min-w-0 bg-transparent px-2 py-1 rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/20 ${
+                  m.active ? '' : 'text-muted-foreground line-through'
+                }`}
+              />
+              <button
+                onClick={() => toggleMesa.mutate(m)}
+                className="px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted shrink-0"
+              >
+                {m.active ? 'Activa' : 'Oculta'}
+              </button>
+              <button
+                onClick={() => removeMesa.mutate(m.id)}
+                className="p-2 rounded-lg hover:bg-destructive/10 text-destructive shrink-0"
+                aria-label={`Eliminar ${m.name}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 

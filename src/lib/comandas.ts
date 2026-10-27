@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 export type ComandaProduct = Database['public']['Tables']['comanda_products']['Row'];
+export type ComandaMesa = Database['public']['Tables']['comanda_mesas']['Row'];
 export type Comanda = Database['public']['Tables']['comandas']['Row'];
 export type ComandaItem = Database['public']['Tables']['comanda_items']['Row'];
 export type ComandaWithItems = Comanda & { comanda_items: ComandaItem[] };
@@ -30,6 +31,18 @@ export const fetchComandas = async (scope: 'abiertas' | 'sin-pagar'): Promise<Co
 
 export const fetchComandaProducts = async (onlyActive: boolean): Promise<ComandaProduct[]> => {
   const query = supabase.from('comanda_products').select('*').order('sort_order');
+  const { data, error } = onlyActive ? await query.eq('active', true) : await query;
+  if (error) throw error;
+  return data ?? [];
+};
+
+/**
+ * Las mesas del salón las define el dueño en el panel; la mesera solo toca una.
+ * Antes escribía el nombre a mano y "Mesa 5", "mesa 5" y "Mesa5" terminaban
+ * siendo tres cuentas distintas en caja.
+ */
+export const fetchComandaMesas = async (onlyActive: boolean): Promise<ComandaMesa[]> => {
+  const query = supabase.from('comanda_mesas').select('*').order('sort_order').order('name');
   const { data, error } = onlyActive ? await query.eq('active', true) : await query;
   if (error) throw error;
   return data ?? [];
