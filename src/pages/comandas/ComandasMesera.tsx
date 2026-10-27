@@ -58,10 +58,13 @@ const ComandasMesera = () => {
   });
 
   const addItem = useMutation({
-    mutationFn: async ({ comandaId, productId, name, price }: { comandaId: string; productId: string; name: string; price: number }) => {
-      const { error } = await supabase
-        .from('comanda_items')
-        .insert({ comanda_id: comandaId, product_id: productId, name, unit_price: price, quantity: 1 });
+    // La RPC suma dentro de la sentencia y lee el precio del catálogo en el servidor:
+    // un doble toque no pierde unidades y el cliente no decide cuánto cuesta nada.
+    mutationFn: async ({ comandaId, productId }: { comandaId: string; productId: string }) => {
+      const { error } = await supabase.rpc('add_comanda_item', {
+        p_comanda_id: comandaId,
+        p_product_id: productId,
+      });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comandas'] }),
@@ -206,7 +209,7 @@ const ComandasMesera = () => {
             {visible.map((p) => (
               <button
                 key={p.id}
-                onClick={() => addItem.mutate({ comandaId: active.id, productId: p.id, name: p.name, price: p.price })}
+                onClick={() => addItem.mutate({ comandaId: active.id, productId: p.id })}
                 className="p-3 rounded-xl border text-left hover:border-primary hover:bg-muted/50 transition-colors"
               >
                 <p className="font-medium text-sm leading-tight">{p.name}</p>
