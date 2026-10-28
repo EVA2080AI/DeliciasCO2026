@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, ExternalLink, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminQuery } from '@/hooks/useAdminQuery';
@@ -85,6 +95,27 @@ const AdminComandas = () => {
         .update({ active: !mesa.active })
         .eq('id', mesa.id);
       if (error) throw error;
+    },
+    onSuccess: () => invalidateCms(qc, CMS_KEYS.comandas),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const moveMesa = useMutation({
+    mutationFn: async ({ mesa, delta }: { mesa: ComandaMesa; delta: -1 | 1 }) => {
+      const lista = [...(mesas ?? [])];
+      const desde = lista.findIndex((m) => m.id === mesa.id);
+      const hasta = desde + delta;
+      if (desde < 0 || hasta < 0 || hasta >= lista.length) return;
+      [lista[desde], lista[hasta]] = [lista[hasta], lista[desde]];
+      // Renumera la lista entera en vez de intercambiar dos valores: el salón tiene
+      // pocas mesas, y así se arreglan solos los empates de sort_order que deja
+      // cualquier carga hecha por fuera del panel (con un empate, intercambiar no
+      // movería nada y la flecha parecería rota).
+      const results = await Promise.all(
+        lista.map((m, idx) => supabase.from('comanda_mesas').update({ sort_order: idx }).eq('id', m.id)),
+      );
+      const fallo = results.find((r) => r.error);
+      if (fallo?.error) throw fallo.error;
     },
     onSuccess: () => invalidateCms(qc, CMS_KEYS.comandas),
     onError: (e: Error) => toast.error(e.message),
@@ -262,8 +293,26 @@ const AdminComandas = () => {
         )}
 
         <div className="grid gap-2 sm:grid-cols-2">
-          {mesas?.map((m) => (
+          {mesas?.map((m, i) => (
             <div key={`${m.id}-${m.name}`} className="flex items-center gap-2 p-2 rounded-lg border">
+              <div className="flex flex-col shrink-0">
+                <button
+                  onClick={() => moveMesa.mutate({ mesa: m, delta: -1 })}
+                  disabled={i === 0 || moveMesa.isPending}
+                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30"
+                  aria-label={`Subir ${m.name}`}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => moveMesa.mutate({ mesa: m, delta: 1 })}
+                  disabled={i === (mesas?.length ?? 0) - 1 || moveMesa.isPending}
+                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30"
+                  aria-label={`Bajar ${m.name}`}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <input
                 defaultValue={m.name}
                 onKeyDown={(e) => {
