@@ -62,10 +62,19 @@ const AdminComandas = () => {
 
   const addMesa = useMutation({
     mutationFn: async (name: string) => {
-      const last = (mesas ?? []).reduce((max, m) => Math.max(max, m.sort_order), -1);
+      // El orden siguiente se pregunta a la base, no a la lista en caché: cargando
+      // varias mesas seguidas, react-query todavía no había refrescado y dos altas
+      // calculaban el mismo sort_order.
+      const { data: ultima, error: errorOrden } = await supabase
+        .from('comanda_mesas')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (errorOrden) throw errorOrden;
       const { error } = await supabase
         .from('comanda_mesas')
-        .insert({ name, sort_order: last + 1 });
+        .insert({ name, sort_order: (ultima?.sort_order ?? -1) + 1 });
       if (error) throw duplicada(error, name);
     },
     onSuccess: () => {
