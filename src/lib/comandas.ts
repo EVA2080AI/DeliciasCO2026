@@ -12,6 +12,25 @@ export const comandaTotal = (items: ComandaItem[]) =>
   items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
 /**
+ * Dos nombres que solo difieren en mayúsculas o espacios son la misma mesa: "Mesa 5",
+ * "mesa 5" y " Mesa 5 " terminaban siendo tres cuentas distintas en caja.
+ */
+const claveMesa = (mesa: string) => mesa.trim().toLocaleLowerCase('es');
+
+/**
+ * Busca la comanda de esa mesa dentro de la lista que se le pase. Quien llama decide
+ * el alcance: la mesera consulta solo las abiertas, así que acá "encontrada" ya significa
+ * "esa mesa está ocupada".
+ */
+export const findComandaAbierta = <T extends { mesa: string }>(
+  comandas: T[] | undefined,
+  mesa: string,
+): T | undefined => {
+  const clave = claveMesa(mesa);
+  return comandas?.find((c) => claveMesa(c.mesa) === clave);
+};
+
+/**
  * Mesera, cocina y caja miran la misma consulta; solo cambia el filtro.
  *  - 'abiertas': mesas donde la mesera todavía toma pedidos.
  *  - 'sin-pagar': todo lo que falta cobrar. Cocina también usa este, porque una mesa

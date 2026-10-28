@@ -10,6 +10,7 @@ import {
   COMANDA_CATEGORIES,
   comandaTotal,
   fetchComandaMesas,
+  findComandaAbierta,
   fetchComandaProducts,
   fetchComandas,
   readMesera,
@@ -67,7 +68,7 @@ const ComandasMesera = () => {
 
   /** Una mesa ocupada no se abre dos veces: se entra a la cuenta que ya tiene. */
   const abrirMesa = (nombre: string) => {
-    const yaAbierta = comandas?.find((c) => c.mesa === nombre);
+    const yaAbierta = findComandaAbierta(comandas, nombre);
     if (yaAbierta) {
       setOpenId(yaAbierta.id);
       return;
