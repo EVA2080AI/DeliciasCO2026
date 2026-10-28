@@ -88,6 +88,9 @@ export const saveMesera = (name: string) => {
 
 export const COMANDA_CATEGORIES: { id: string; label: string }[] = [
   { id: 'panaderia', label: 'Panadería' },
+  // Va segunda y no primera a propósito: la primera es la pestaña que la mesera ve
+  // al abrir una mesa, y el grueso del día sigue siendo panadería.
+  { id: 'desayunos', label: 'Desayunos' },
   { id: 'cafeteria', label: 'Cafetería' },
   { id: 'bebidas', label: 'Bebidas' },
 ];
