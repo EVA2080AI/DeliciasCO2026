@@ -9,6 +9,8 @@ import { formatCOP } from '@/lib/quotation';
 import {
   COMANDA_CATEGORIES,
   comandaTotal,
+  fetchComandaMesas,
+  findComandaAbierta,
   fetchComandaProducts,
   fetchComandas,
   readMesera,
@@ -23,6 +25,7 @@ const ComandasMesera = () => {
   const [mesera, setMesera] = useState(readMesera);
   const [nameDraft, setNameDraft] = useState('');
   const [mesaDraft, setMesaDraft] = useState('');
+  const [otraCuenta, setOtraCuenta] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [category, setCategory] = useState(COMANDA_CATEGORIES[0].id);
 
@@ -36,6 +39,12 @@ const ComandasMesera = () => {
   const { data: products, isPending: loadingProducts } = useQuery({
     queryKey: ['comanda-products', 'activos'],
     queryFn: () => fetchComandaProducts(true),
+    enabled: mesera !== '',
+  });
+
+  const { data: mesas } = useQuery({
+    queryKey: ['comanda-mesas', 'activas'],
+    queryFn: () => fetchComandaMesas(true),
     enabled: mesera !== '',
   });
 
@@ -56,6 +65,16 @@ const ComandasMesera = () => {
     },
     onError: (e: Error) => toast.error(`No se pudo abrir la mesa: ${e.message}`),
   });
+
+  /** Una mesa ocupada no se abre dos veces: se entra a la cuenta que ya tiene. */
+  const abrirMesa = (nombre: string) => {
+    const yaAbierta = findComandaAbierta(comandas, nombre);
+    if (yaAbierta) {
+      setOpenId(yaAbierta.id);
+      return;
+    }
+    openComanda.mutate(nombre);
+  };
 
   const addItem = useMutation({
     // La RPC suma dentro de la sentencia y lee el precio del catálogo en el servidor:
@@ -237,35 +256,80 @@ const ComandasMesera = () => {
     );
   }
 
-  // ─── Lista de mesas abiertas ──────────────────────────────────────────────
+  // ─── El salón ─────────────────────────────────────────────────────────────
+  // La grilla son las mesas que cargó el dueño. Abajo quedan las cuentas que no
+  // son del salón (una mesa que se dio de baja, algo escrito a mano) para que no
+  // desaparezcan de la vista de la mesera.
+  const salon = mesas ?? [];
+  const haySalon = salon.length > 0;
+  const abiertaPorMesa = new Map((comandas ?? []).map((c) => [c.mesa, c] as const));
+  const sueltas = (comandas ?? []).filter((c) => !salon.some((m) => m.name === c.mesa));
+  const pendientes = haySalon ? sueltas : (comandas ?? []);
+
   return (
     <div className="min-h-screen bg-background">
       <ComandasNav title="Comandas" subtitle={`Mesera: ${mesera}`} />
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const clean = mesaDraft.trim();
-          if (clean === '') return;
-          openComanda.mutate(clean);
-        }}
-        className="p-4 flex gap-2"
-      >
-        <input
-          value={mesaDraft}
-          onChange={(e) => setMesaDraft(e.target.value)}
-          placeholder="Mesa 5, Barra, Para llevar…"
-          className="flex-1 px-4 py-2.5 rounded-xl border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-        />
-        <button
-          type="submit"
-          disabled={mesaDraft.trim() === '' || openComanda.isPending}
-          className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-40 flex items-center gap-1.5"
+      {haySalon && (
+        <section className="p-4 space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {salon.map((m) => {
+              const abierta = abiertaPorMesa.get(m.name);
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => abrirMesa(m.name)}
+                  disabled={openComanda.isPending}
+                  className={`p-3 rounded-xl border text-left transition-colors disabled:opacity-40 ${
+                    abierta ? 'border-primary bg-primary/5' : 'hover:border-primary'
+                  }`}
+                >
+                  <p className="font-semibold text-sm truncate">{m.name}</p>
+                  <p className={`text-xs truncate ${abierta ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                    {abierta ? formatCOP(comandaTotal(abierta.comanda_items)) : 'Libre'}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          {!otraCuenta && (
+            <button
+              onClick={() => setOtraCuenta(true)}
+              className="text-xs text-muted-foreground underline underline-offset-2"
+            >
+              Abrir una cuenta que no es del salón
+            </button>
+          )}
+        </section>
+      )}
+
+      {(!haySalon || otraCuenta) && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const clean = mesaDraft.trim();
+            if (clean === '') return;
+            abrirMesa(clean);
+            setMesaDraft('');
+          }}
+          className="px-4 pb-4 flex gap-2"
         >
-          {openComanda.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Abrir
-        </button>
-      </form>
+          <input
+            value={mesaDraft}
+            onChange={(e) => setMesaDraft(e.target.value)}
+            placeholder="Mesa 5, Barra, Para llevar…"
+            className="flex-1 min-w-0 px-4 py-2.5 rounded-xl border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+          <button
+            type="submit"
+            disabled={mesaDraft.trim() === '' || openComanda.isPending}
+            className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-40 flex items-center gap-1.5 shrink-0"
+          >
+            {openComanda.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Abrir
+          </button>
+        </form>
+      )}
 
       <section className="px-4 pb-8 space-y-2">
         {loadingComandas && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
@@ -274,11 +338,14 @@ const ComandasMesera = () => {
             No se pudieron cargar las mesas: {comandasError.message}
           </p>
         )}
-        {comandas?.length === 0 && !loadingComandas && (
+        {!loadingComandas && !haySalon && pendientes.length === 0 && (
           <p className="text-sm text-muted-foreground py-8 text-center">No hay mesas abiertas.</p>
         )}
+        {haySalon && pendientes.length > 0 && (
+          <h2 className="text-sm font-semibold text-muted-foreground">Otras cuentas abiertas</h2>
+        )}
         <AnimatePresence initial={false}>
-          {comandas?.map((c) => (
+          {pendientes.map((c) => (
             <motion.button
               key={c.id}
               layout
