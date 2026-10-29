@@ -31,3 +31,6 @@ dist-ssr
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Notas locales de la máquina (rutas, cuentas): el repo es público.
+CUENTA-GITHUB.md
